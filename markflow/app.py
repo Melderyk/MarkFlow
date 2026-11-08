@@ -5,6 +5,8 @@ import os
 import re
 import sys
 import threading
+import multiprocessing
+import queue
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,7 +16,7 @@ from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QFileDialog, QFrame, QHBoxLayout,
     QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
     QPlainTextEdit, QProgressBar, QPushButton, QScrollArea, QSizePolicy,
-    QSpinBox, QSplitter, QStackedWidget, QTabWidget, QTextBrowser, QVBoxLayout, QWidget, QTreeWidget, QTreeWidgetItem, QDialog,
+    QSpinBox, QSplitter, QStackedWidget, QTabWidget, QTextBrowser, QVBoxLayout, QWidget, QDialog,
 )
 
 from .core import Cancelled, Converter, Options, Result, atomic_write, docx_preview_html, merge_results, pdf_preview
@@ -22,6 +24,7 @@ from . import __version__
 from .image_host import HostConfig, ImageUploader, upload_images, protect_token, unprotect_token
 from .markdown_tools import document_index, change_language, preview_sections, export_chapters, rewrite_images
 from .ui_helpers import HostDialog, PreviewBrowser
+from .outline import OutlineTree, OutlineItem
 
 
 ROOT = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[1]
@@ -52,21 +55,54 @@ class BatchWorker(QThread):
         self.cancel_event = threading.Event()
 
     def run(self):
-        converter = Converter()
+        from .conversion_worker import convert_document
+        context = multiprocessing.get_context('spawn')
         for index, source in self.jobs:
             if self.cancel_event.is_set():
                 break
             self.progress.emit(index, "转换中")
+            messages = context.Queue()
+            cancelled = context.Event()
+            process = context.Process(target=convert_document,
+                args=(source, self.options, messages, cancelled), daemon=True)
+            terminal = False
             try:
-                result = converter.convert(source, self.options,
-                                           lambda text, i=index: self.progress.emit(i, text),
-                                           self.cancel_event)
-                self.converted.emit(index, result)
-            except Cancelled:
-                self.stopped.emit(index)
-                break
+                process.start()
+                while not terminal:
+                    if self.cancel_event.is_set():
+                        cancelled.set()
+                    try:
+                        kind, value = messages.get(timeout=.05)
+                    except queue.Empty:
+                        if not process.is_alive():
+                            # A final message can arrive just after process exit.
+                            try: kind, value = messages.get(timeout=.2)
+                            except queue.Empty:
+                                raise RuntimeError('转换进程意外退出，原文件未修改，可重试。')
+                        else:
+                            continue
+                    if kind == 'progress': self.progress.emit(index, value)
+                    elif kind == 'result':
+                        self.converted.emit(index, value)
+                        terminal = True
+                    elif kind == 'cancelled':
+                        self.stopped.emit(index)
+                        terminal = True
+                        self.cancel_event.set()
+                    elif kind == 'error':
+                        self.failed.emit(index, value)
+                        terminal = True
+                process.join(timeout=5)
             except Exception as exc:
                 self.failed.emit(index, str(exc))
+            finally:
+                if process.pid is not None:
+                    if process.is_alive():
+                        process.terminate()
+                    process.join(timeout=5)
+                    process.close()
+                messages.close()
+                messages.join_thread()
 
 
 class PublishWorker(QThread):
@@ -88,12 +124,40 @@ class PublishWorker(QThread):
             self.failed.emit('图片上传失败，请检查图床设置。已有文档保留。')
 
 
+class SourcePreviewWorker(QThread):
+    loaded = Signal(object)
+
+    def __init__(self, request, parent=None):
+        super().__init__(parent)
+        self.request = request
+
+    def run(self):
+        serial, source, page = self.request
+        try:
+            if source.suffix.lower() == '.pdf':
+                value, count = pdf_preview(source, page)
+            else:
+                value, count = docx_preview_html(source), 0
+            self.loaded.emit((self.request, value, count, ''))
+        except Exception as exc:
+            self.loaded.emit((self.request, None, 0, str(exc)[:180]))
+
+
 class OriginalPreview(QWidget):
     def __init__(self):
         super().__init__()
         self.source = None
         self.page_count = 0
         self.pil = None
+        self._image = None
+        self._image_key = None
+        self._request_serial = 0
+        self._pending = None
+        self._worker = None
+        self.resize_timer = QTimer(self)
+        self.resize_timer.setSingleShot(True)
+        self.resize_timer.setInterval(80)
+        self.resize_timer.timeout.connect(self.update_image)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.description = QLabel("原文预览")
@@ -139,68 +203,119 @@ class OriginalPreview(QWidget):
         if source == self.source:
             return
         self.source = source
+        self._request_serial += 1
+        self._pending = None
         self.pil = None
+        self._image = None
+        self._image_key = None
+        self.page_count = 0
         self.controls.hide()
         if source is None:
             self.stack.setCurrentWidget(self.placeholder)
             self.description.setText("原文预览")
             return
-        try:
-            if source.suffix.lower() == ".pdf":
-                self.description.setText("PDF 原文 · 页面预览")
-                self.page.blockSignals(True)
-                self.page.setValue(1)
-                self.pil, self.page_count = pdf_preview(source, 0)
-                self.page.setMaximum(max(1, self.page_count))
-                self.page.blockSignals(False)
-                self.total.setText(f"/ {self.page_count} 页")
-                self.controls.show()
-                self.stack.setCurrentWidget(self.scroll)
-                self.update_image()
-                self.update_controls()
-            else:
-                self.description.setText("Word 原文 · 内容预览（不含分页）")
-                self.word.setHtml(docx_preview_html(source))
-                self.stack.setCurrentWidget(self.word)
-        except Exception as exc:
-            self.page.blockSignals(False)
-            self.placeholder.setText(f"原文暂时无法预览\n{str(exc)[:180]}")
-            self.stack.setCurrentWidget(self.placeholder)
+        self.description.setText('PDF 原文 · 页面预览' if source.suffix.lower()=='.pdf' else 'Word 原文 · 内容预览（不含分页）')
+        self.page.blockSignals(True)
+        self.page.setRange(1, 1)
+        self.page.setValue(1)
+        self.page.blockSignals(False)
+        self.placeholder.setText('正在加载原文预览…')
+        self.stack.setCurrentWidget(self.placeholder)
+        self.request_preview(0)
 
     def load_page(self, value):
         if self.source is None or self.source.suffix.lower() != ".pdf":
             return
-        try:
-            self.pil, _ = pdf_preview(self.source, value - 1)
+        self.request_preview(value - 1)
+        self.update_controls()
+
+    def show_page(self, page):
+        if self.source is None or self.source.suffix.lower() != '.pdf':
+            return
+        page = max(1, min(page, self.page_count)) if self.page_count else max(1, page)
+        self.page.blockSignals(True)
+        self.page.setMaximum(max(self.page.maximum(), page))
+        self.page.setValue(page)
+        self.page.blockSignals(False)
+        self.request_preview(page-1)
+
+    def request_preview(self, page):
+        self._request_serial += 1
+        self._pending = (self._request_serial, self.source, page)
+        self.start_preview()
+
+    def start_preview(self):
+        if self._worker is not None or self._pending is None:
+            return
+        request, self._pending = self._pending, None
+        self._worker = SourcePreviewWorker(request, self)
+        self._worker.loaded.connect(self.preview_loaded)
+        self._worker.finished.connect(self.preview_finished)
+        self._worker.start()
+
+    def preview_loaded(self, result):
+        request, value, count, error = result
+        serial, source, page = request
+        if serial != self._request_serial or source != self.source:
+            return
+        if error:
+            self.placeholder.setText('原文暂时无法预览\n' + error)
+            self.stack.setCurrentWidget(self.placeholder)
+            return
+        if source.suffix.lower()=='.pdf':
+            self.pil = value
+            pil = value.convert('RGB')
+            self._image = QImage(pil.tobytes(), pil.width, pil.height, pil.width*3, QImage.Format.Format_RGB888).copy()
+            self._image_key = None
+            self.page_count = count
+            self.page.blockSignals(True)
+            self.page.setRange(1, max(1, count))
+            self.page.setValue(page+1)
+            self.page.blockSignals(False)
+            self.total.setText(f'/ {count} 页')
+            self.controls.show()
+            self.stack.setCurrentWidget(self.scroll)
             self.update_image()
             self.update_controls()
-        except Exception as exc:
-            self.placeholder.setText(f"页面加载失败\n{str(exc)[:180]}")
-            self.stack.setCurrentWidget(self.placeholder)
+        else:
+            self.word.setHtml(value)
+            self.stack.setCurrentWidget(self.word)
+
+    def preview_finished(self):
+        worker, self._worker = self._worker, None
+        if worker is not None:
+            worker.wait()
+            worker.deleteLater()
+        self.start_preview()
+
+    def is_loading(self):
+        return self._worker is not None or self._pending is not None
 
     def update_controls(self):
         self.previous.setEnabled(self.page.value() > 1)
         self.next.setEnabled(self.page.value() < self.page_count)
 
     def update_image(self):
-        if self.pil is None:
+        if self._image is None:
             return
-        pil = self.pil.convert("RGB")
-        qimage = QImage(pil.tobytes(), pil.width, pil.height, pil.width * 3, QImage.Format.Format_RGB888).copy()
         width = max(260, self.scroll.viewport().width() - 28)
-        pixmap = QPixmap.fromImage(qimage).scaledToWidth(width, Qt.TransformationMode.SmoothTransformation)
+        if self._image_key == width:
+            return
+        pixmap = QPixmap.fromImage(self._image).scaledToWidth(width, Qt.TransformationMode.SmoothTransformation)
         self.image.setPixmap(pixmap)
         self.image.setMinimumHeight(pixmap.height() + 16)
+        self._image_key = width
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.update_image()
+        self.resize_timer.start()
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.entries: list[Entry] = []
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose,True)
         self.current_index = -1
         self.worker = None
         self.running = False
@@ -226,9 +341,11 @@ class MainWindow(QMainWindow):
         self._build()
         self._load_config()
         # Child viewports and line edits otherwise consume Explorer URL drops.
-        for widget in self.findChildren(QWidget):
+        self.drop_targets = (self.queue.viewport(), self.editor.viewport(),
+                             self.rendered.viewport(), self.output_edit)
+        for widget in self.drop_targets:
             widget.setAcceptDrops(True)
-        QApplication.instance().installEventFilter(self)
+            widget.installEventFilter(self)
 
     def _build(self):
         central = QWidget()
@@ -393,12 +510,13 @@ class MainWindow(QMainWindow):
         code_row.addWidget(self.apply_language_btn)
         right_layout.addLayout(code_row)
         work_split=QSplitter(Qt.Orientation.Horizontal)
+        work_split.setChildrenCollapsible(False)
         self.navigation=QTabWidget()
         self.navigation.tabBar().setUsesScrollButtons(False)
-        self.outline=QTreeWidget()
+        self.outline=OutlineTree()
         self.outline.setHeaderHidden(True)
         self.outline.setMinimumWidth(130)
-        self.outline.itemClicked.connect(lambda item,column:self.navigate_line(item.data(0,Qt.ItemDataRole.UserRole)))
+        self.outline.headingClicked.connect(lambda item:self.navigate_line(item.data(0,Qt.ItemDataRole.UserRole)))
         self.issues=QListWidget()
         self.issues.itemClicked.connect(self.select_issue)
         self.navigation.addTab(self.outline,'大纲')
@@ -414,7 +532,8 @@ class MainWindow(QMainWindow):
         font = QFont("Cascadia Code", 11)
         font.setStyleHint(QFont.StyleHint.Monospace)
         self.editor.setFont(font)
-        self.editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.editor.setToolTip('Markdown 源码保留原始行；长行可横向滚动，阅读排版请用渲染预览。')
         self.editor.textChanged.connect(self.editor_changed)
         self.rendered = PreviewBrowser()
         self.rendered.setAcceptDrops(False)
@@ -626,16 +745,18 @@ class MainWindow(QMainWindow):
                    for i in range(self.outline.topLevelItemCount())}
         self.index=document_index(text,base,warnings)
         self.sections=preview_sections(text)
+        self.outline.begin_update()
         self.outline.clear()
         parents=[]
         for heading in self.index.headings:
             while parents and parents[-1][0]>=heading.level: parents.pop()
-            item=QTreeWidgetItem([heading.title])
+            item=OutlineItem([heading.title])
             item.setData(0,Qt.ItemDataRole.UserRole,heading.line)
             if parents: parents[-1][1].addChild(item)
             else: self.outline.addTopLevelItem(item)
             item.setExpanded(not collapsed.get(heading.title,False))
             parents.append((heading.level,item))
+        self.outline.end_update()
         self.issues.clear()
         for issue in self.index.issues:
             item=QListWidgetItem(f'[{issue.kind}] '+issue.message)
@@ -659,14 +780,15 @@ class MainWindow(QMainWindow):
 
     def navigate_line(self,line):
         if line is None: return
+        if self.tabs.currentIndex()==1:
+            self.preview_section=next((i for i,(start,end,_) in enumerate(self.sections) if start<=line<end),0)
+            self.refresh_render()
+            return
         block=self.editor.document().findBlockByNumber(line)
         if block.isValid():
             self.editor.setTextCursor(QTextCursor(block))
             self.editor.centerCursor()
-        if self.tabs.currentIndex()==1:
-            self.preview_section=next((i for i,(start,end,_) in enumerate(self.sections) if start<=line<end),0)
-            self.refresh_render()
-        else: self.editor.setFocus()
+        self.editor.setFocus()
 
     def select_issue(self,item):
         issue=item.data(Qt.ItemDataRole.UserRole)
@@ -674,7 +796,7 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentIndex(0)
         self.navigate_line(issue.line)
         if issue.page and self.original.source and self.original.source.suffix.lower()=='.pdf':
-            self.original.page.setValue(min(issue.page,self.original.page_count))
+            self.original.show_page(issue.page)
 
     def select_code(self,index):
         if not 0<=index<len(self.index.codes): return
@@ -789,6 +911,7 @@ class MainWindow(QMainWindow):
             self.status.setText('图片已处理，但文档保存失败，请检查目录权限后重试。')
 
     def on_publish_finished(self):
+        self.worker.wait()
         self.running=False
         self.start_btn.setText('转换完成' if all(e.result for e in self.entries) else '继续 / 重试')
         self.refresh_enabled()
@@ -870,6 +993,7 @@ class MainWindow(QMainWindow):
         self.update_item(index)
 
     def on_finished(self):
+        self.worker.wait()
         cancelled = self.worker.cancel_event.is_set()
         self.running = False
         self.start_btn.setText("继续 / 重试" if any(not e.result for e in self.entries) else "转换完成")
@@ -986,7 +1110,7 @@ class MainWindow(QMainWindow):
                 QDesktopServices.openUrl(QUrl.fromLocalFile(str(entry.result.chapters_dir/'目录.md')))
 
     def eventFilter(self,obj,event):
-        if event.type() in {QEvent.Type.DragEnter,QEvent.Type.DragMove,QEvent.Type.Drop} and isinstance(obj,QWidget) and (obj is self or self.isAncestorOf(obj)):
+        if event.type() in (QEvent.Type.DragEnter,QEvent.Type.DragMove,QEvent.Type.Drop):
             mime=event.mimeData()
             if mime.hasUrls():
                 paths=[Path(url.toLocalFile()) for url in mime.urls() if url.isLocalFile()]
@@ -1011,11 +1135,16 @@ class MainWindow(QMainWindow):
             self.status.setText("正在停止转换，请等待当前页面结束后再关闭。")
             event.ignore()
             return
+        if self.original.is_loading():
+            self.status.setText('正在结束原文预览，请稍候再关闭。')
+            event.ignore()
+            return
         if not self.confirm_unsaved(self.entries):
             event.ignore()
             return
         self._save_config()
-        QApplication.instance().removeEventFilter(self)
+        for widget in self.drop_targets:
+            widget.removeEventFilter(self)
         self.analysis_timer.stop()
         event.accept()
 
@@ -1087,6 +1216,9 @@ def main():
     app = QApplication(sys.argv)
     configure_application(app)
     window = MainWindow()
+    from .diagnostics import UiWatchdog
+    watchdog=UiWatchdog(window,ROOT)
+    app.aboutToQuit.connect(watchdog.stop)
     if len(sys.argv) > 1:
         window.add_files([Path(arg) for arg in sys.argv[1:]])
     window.show()

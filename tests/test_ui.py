@@ -44,12 +44,14 @@ def test_batch_preview_edit_and_save(qt_app, tmp_path, monkeypatch):
     assert not window.entries[0].dirty
     assert "UI EDIT" in window.entries[0].result.output.read_text(encoding="utf-8")
     window.queue.setCurrentRow(1)
+    wait_for(qt_app, lambda: not window.original.is_loading())
     assert window.original.page_count == 2
     window.original.page.setValue(2)
     assert window.original.page.value() == 2
     window.remove_selected()
     assert len(window.entries) == 2
     window.clear_queue()
+    wait_for(qt_app, lambda: not window.original.is_loading())
     assert not window.entries and window.current_index == -1
     window.close()
 

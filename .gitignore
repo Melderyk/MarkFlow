@@ -7,6 +7,7 @@ build/
 dist/
 导出/
 selfcheck/
+diagnostics/
 markflow-settings.json
 .markflow-upload-cache.json
 *.images.json

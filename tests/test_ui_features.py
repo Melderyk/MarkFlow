@@ -33,6 +33,7 @@ def test_explorer_file_drop_on_child_widgets(qt_app,tmp_path,monkeypatch,surface
     assert drop.isAccepted() and len(window.entries)==1
     assert window.entries[0].source==source
     assert str(source) not in window.editor.toPlainText()
+    wait_for(qt_app,lambda:not window.original.is_loading())
     window.close()
 
 
@@ -41,6 +42,7 @@ def attach(window,tmp_path,source,text):
     out.write_text(text,encoding='utf8')
     window.add_files([source])
     window.on_converted(0,Result(source,out,text,pages=2,warnings=['第 2 页 OCR 代码需核对']))
+    wait_for(QApplication.instance(),lambda:not window.original.is_loading())
 
 
 def test_outline_quality_navigation_language_undo_and_save(qt_app,tmp_path,monkeypatch):
@@ -73,6 +75,7 @@ def test_outline_quality_navigation_language_undo_and_save(qt_app,tmp_path,monke
     issue=next(window.issues.item(i) for i in range(window.issues.count())
                if getattr(window.issues.item(i).data(Qt.ItemDataRole.UserRole),'page',0)==2)
     window.select_issue(issue)
+    wait_for(qt_app,lambda:not window.original.is_loading())
     assert window.original.page.value()==2
     assert window.editor.textCursor().blockNumber()==8
     window.close()

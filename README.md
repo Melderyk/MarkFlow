@@ -12,11 +12,11 @@
 
 English: MarkFlow is a Windows desktop PDF/DOCX-to-Markdown converter with local Chinese/English OCR, code blocks, an outline, image hosting adapters and chapter exports. Text conversion runs locally. Images are uploaded only when you choose hosting or explicitly start an upload. Download the portable build from Releases; source setup is below.
 
-当前版本 **0.2.0**：新增本地／图床两种图片导出模式、图床上传重试、手动修改代码语言、软件内可折叠大纲与质量提示；修复子控件区域拖拽导入，并为长文档增加分段预览和分章阅读版。保留此前的代码语言识别、OCR 布局和标题修复。
+当前版本 **0.2.2**：修复大型文档折叠大纲后再次点击标题时的界面停顿，保留标题层级、折叠和键盘导航。转换在独立进程执行，原页预览异步加载，预览图片缓存有容量限制。83 项自动化测试、打包自检及本机实际点击验收通过，详见 [测试报告](测试报告.md)。
 
 ## 使用免安装版
 
-1. 将 `MarkFlow-v0.2.0-windows-x64.zip` **完整解压**到一个可写目录。
+1. 将 `MarkFlow-v0.2.2-windows-x64.zip` **完整解压**到一个可写目录。
 2. 双击 `MarkFlow.exe`。程序需要同目录的 `_internal`，不要只移动 EXE。
 3. 点击“添加 PDF / Word”，或把文件拖入窗口。
 4. 选择输出目录、Markdown 格式，点击“开始转换”。
@@ -122,6 +122,14 @@ $env:QT_QPA_PLATFORM = "offscreen"
 ```powershell
 .\dist\MarkFlow\MarkFlow.exe --self-test .\selfcheck
 ```
+
+也可用自己的文件运行界面压力检查；文件在本地转换，结果留在指定目录，报告不记录输入路径或正文：
+
+```powershell
+.\dist\MarkFlow\MarkFlow.exe --self-test-stress .\stresscheck "C:\documents\sample.pdf"
+```
+
+检查完成后还应确认程序退出码为 0。正常运行时，若界面心跳超过 6 秒未响应，会在程序目录 `diagnostics/ui-watchdog.log` 记录 Python 线程堆栈，方便定位；日志不主动记录文档正文或图床密钥。
 
 `markflow/core.py` 是独立转换核心，`markflow/pdf_layout.py` 负责 PDF 字符几何、书签与代码块，`markflow/code_languages.py` 负责语言判断，`markflow/ocr_layout.py` 负责扫描代码布局，`markflow/image_host.py` 负责图床适配，`markflow/markdown_tools.py` 负责导航检查和分章，`markflow/app.py` 是 PySide6 桌面界面。设置保存在程序目录的 `markflow-settings.json` 中，输出默认位于程序目录的“导出”文件夹。
 

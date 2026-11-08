@@ -8,6 +8,7 @@ from PySide6.QtCore import QEvent, QSize, Qt, QThread, Signal, QUrl, QTimer
 from PySide6.QtGui import QImage, QImageReader, QTextDocument, QTextCursor
 from PySide6.QtWidgets import (QDialog,QDialogButtonBox,QFormLayout,QVBoxLayout,
     QHBoxLayout,QLabel,QLineEdit,QComboBox,QPushButton,QCheckBox,QTextBrowser)
+from shiboken6 import delete, isValid
 
 from .image_host import HostConfig, ImageUploader, PRESETS
 
@@ -138,6 +139,7 @@ class PreviewBrowser(QTextBrowser):
     def __init__(self):
         super().__init__()
         self.images=OrderedDict()
+        self._fitting=False
         self.setAcceptDrops(False)
         self.setOpenExternalLinks(False)
         self.fit_timer=QTimer(self)
@@ -146,6 +148,16 @@ class PreviewBrowser(QTextBrowser):
         self.fit_timer.timeout.connect(self.fit_images)
 
     def setMarkdown(self,text):
+        # QTextDocument caches resources independently of our decoded-image LRU.
+        # A fresh document bounds that cache to the current preview section.
+        base=self.document().baseUrl()
+        previous=self.document()
+        document=QTextDocument(self)
+        document.setBaseUrl(base)
+        self.setDocument(document)
+        if isValid(previous):
+            delete(previous)
+        self.images.clear()
         super().setMarkdown(text)
         self.fit_images()
 
@@ -154,7 +166,9 @@ class PreviewBrowser(QTextBrowser):
         self.fit_timer.start()
 
     def fit_images(self):
+        if self._fitting: return
         width=max(100,self.viewport().width()-40)
+        changes=[]
         block=self.document().begin()
         while block.isValid():
             iterator=block.begin()
@@ -169,12 +183,21 @@ class PreviewBrowser(QTextBrowser):
                         if abs(fmt.width()-fitted)>.5 or abs(fmt.height()-height)>.5:
                             fmt.setWidth(fitted)
                             fmt.setHeight(height)
-                            cursor=QTextCursor(self.document())
-                            cursor.setPosition(fragment.position())
-                            cursor.setPosition(fragment.position()+fragment.length(),QTextCursor.MoveMode.KeepAnchor)
-                            cursor.setCharFormat(fmt)
+                            changes.append((fragment.position(),fragment.length(),fmt))
                 iterator+=1
             block=block.next()
+        # Do not mutate a document while traversing its fragment iterators.
+        self._fitting=True
+        cursor=QTextCursor(self.document())
+        cursor.beginEditBlock()
+        try:
+            for position,length,fmt in changes:
+                cursor.setPosition(position)
+                cursor.setPosition(position+length,QTextCursor.MoveMode.KeepAnchor)
+                cursor.setCharFormat(fmt)
+        finally:
+            cursor.endEditBlock()
+            self._fitting=False
 
     def loadResource(self,kind,url):
         if kind==QTextDocument.ResourceType.ImageResource:

@@ -3,19 +3,22 @@ import socket
 import sys
 import traceback
 import time
+import os
 from pathlib import Path
 
 from .core import Converter, Options, merge_results, pdf_preview
 from . import __version__
 
 
-def run(destination):
+def run(destination, stress_source=None):
     root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
     samples = root / ("samples" if getattr(sys, "frozen", False) else "示例文件")
     output = Path(destination).resolve()
     output.mkdir(parents=True, exist_ok=True)
     report = {"version": __version__, "frozen": bool(getattr(sys, "frozen", False)), "checks": []}
     original_connect = socket.socket.connect
+    previous_offline=os.environ.get('MARKFLOW_OFFLINE_SELFTEST')
+    os.environ['MARKFLOW_OFFLINE_SELFTEST']='1'
     def offline_only(*args, **kwargs):
         raise RuntimeError("Self-check blocks all network connections")
     socket.socket.connect = offline_only
@@ -53,6 +56,9 @@ def run(destination):
         app = QApplication.instance() or QApplication([])
         app_module.configure_application(app)
         window = app_module.MainWindow()
+        from .diagnostics import UiWatchdog
+        watchdog = UiWatchdog(window, output)
+        app.aboutToQuit.connect(watchdog.stop)
         window.output_edit.setText(str(output / "ui-exports"))
         window.show()
         app.processEvents()
@@ -78,6 +84,9 @@ def run(destination):
                 raise RuntimeError("GUI batch self-check timed out")
         assert all(entry.result for entry in window.entries)
         window.queue.setCurrentRow(1)
+        while window.original.is_loading():
+            app.processEvents()
+            time.sleep(.01)
         assert window.outline.topLevelItemCount()==1
         assert window.outline.topLevelItem(0).childCount()==1
         assert window.index.codes
@@ -95,10 +104,20 @@ def run(destination):
         window.outline.collapseAll()
         app.processEvents()
         window.grab().save(str(output / "selfcheck-ui.png"))
-        window.close()
+        if stress_source:
+            from .performance_check import exercise
+            report['responsiveness']=exercise(app,window,Path(stress_source),output)
+        # Exercise the real event-loop exit and QObject destruction order too.
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(0, window.close)
+        app.exec()
+        watchdog.stop()
         app.processEvents()
+        from PySide6.QtCore import QCoreApplication,QEvent
+        QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
         report['ui_features']={'child_viewport_drop':True,'outline_navigation':True,
-            'manual_code_language_and_save':True,'bounded_preview':True}
+            'manual_code_language_and_save':True,'bounded_preview':True,
+            'event_loop_shutdown':True}
         report["passed"] = True
         return_code = 0
     except Exception:
@@ -107,5 +126,7 @@ def run(destination):
         return_code = 1
     finally:
         socket.socket.connect = original_connect
+        if previous_offline is None: os.environ.pop('MARKFLOW_OFFLINE_SELFTEST',None)
+        else: os.environ['MARKFLOW_OFFLINE_SELFTEST']=previous_offline
     (output / "selfcheck.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     return return_code

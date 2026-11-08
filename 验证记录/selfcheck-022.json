@@ -1,0 +1,64 @@
+{
+  "version": "0.2.2",
+  "frozen": true,
+  "checks": [
+    {
+      "file": "01_Word示例.docx",
+      "pages": 0,
+      "ocr_pages": 0,
+      "passed": true
+    },
+    {
+      "file": "02_文字PDF示例.pdf",
+      "pages": 2,
+      "ocr_pages": 0,
+      "passed": true
+    },
+    {
+      "file": "03_扫描PDF示例.pdf",
+      "pages": 1,
+      "ocr_pages": 1,
+      "passed": true
+    }
+  ],
+  "windows_secret_store": true,
+  "responsiveness": {
+    "pages": 80,
+    "headings": 506,
+    "code_blocks": 618,
+    "outline_mouse_clicks": 676,
+    "navigation_toggles": 134,
+    "resize_move_during_conversion": 703,
+    "conversion_seconds": 14.31,
+    "max_outline_action_seconds": 0.203,
+    "max_ui_heartbeat_gap_seconds": 0.266,
+    "peak_ui_working_set_mb": 377.2,
+    "text_and_code_unchanged": true,
+    "passed": true
+  },
+  "ui_features": {
+    "child_viewport_drop": true,
+    "outline_navigation": true,
+    "manual_code_language_and_save": true,
+    "bounded_preview": true,
+    "event_loop_shutdown": true
+  },
+  "passed": true,
+  "process_exit_code": 0,
+  "executable_sha256": "a6f654c1112dd947e029a71803276343b30f898ac05ee8084cc51fb7f00160f7",
+  "automated_tests": {
+    "passed": 83,
+    "process_exit_code": 0
+  },
+  "native_mouse_verification": {
+    "sequence": "Collapse first chapter, then select second chapter with OS mouse input",
+    "fixed_source_reproduction": "passed",
+    "windows_accessibility_enabled": true,
+    "packaged_user_acceptance": "User confirmed smooth interaction on 2026-11-08",
+    "scope": "Local Windows machine; not a guarantee for all UI automation clients"
+  },
+  "output_regression": {
+    "files_compared": 132,
+    "all_sha256_equal": true
+  }
+}
