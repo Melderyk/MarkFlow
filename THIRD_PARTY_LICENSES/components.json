@@ -1,0 +1,389 @@
+[
+  {
+    "name": "altgraph",
+    "version": "0.17.5",
+    "declared_license": "MIT",
+    "notices": [
+      "altgraph\\altgraph-0.17.5.dist-info\\LICENSE"
+    ]
+  },
+  {
+    "name": "cffi",
+    "version": "2.1.1",
+    "declared_license": "MIT-0",
+    "notices": [
+      "cffi\\cffi-2.1.1.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "charset-normalizer",
+    "version": "3.5.2",
+    "declared_license": "MIT",
+    "notices": [
+      "charset-normalizer\\charset_normalizer-3.5.2.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "colorama",
+    "version": "0.4.6",
+    "declared_license": "See included notices / project source",
+    "notices": [
+      "colorama\\colorama-0.4.6.dist-info\\licenses\\LICENSE.txt"
+    ]
+  },
+  {
+    "name": "cryptography",
+    "version": "50.0.2",
+    "declared_license": "Apache-2.0 OR BSD-3-Clause",
+    "notices": [
+      "cryptography\\cryptography-50.0.2.dist-info\\licenses\\LICENSE",
+      "cryptography\\cryptography-50.0.2.dist-info\\licenses\\LICENSE.APACHE",
+      "cryptography\\cryptography-50.0.2.dist-info\\licenses\\LICENSE.BSD"
+    ]
+  },
+  {
+    "name": "flatbuffers",
+    "version": "25.12.19",
+    "declared_license": "Apache 2.0",
+    "notices": []
+  },
+  {
+    "name": "iniconfig",
+    "version": "2.3.1",
+    "declared_license": "MIT",
+    "notices": [
+      "iniconfig\\iniconfig-2.3.1.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "lxml",
+    "version": "6.1.3",
+    "declared_license": "BSD-3-Clause",
+    "notices": [
+      "lxml\\lxml-6.1.3.dist-info\\licenses\\LICENSE.txt",
+      "lxml\\lxml-6.1.3.dist-info\\licenses\\LICENSES.txt"
+    ]
+  },
+  {
+    "name": "numpy",
+    "version": "2.5.4",
+    "declared_license": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+    "notices": [
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\LICENSE.txt",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\_core\\include\\numpy\\libdivide\\LICENSE.txt",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\_core\\src\\common\\pythoncapi-compat\\COPYING",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\_core\\src\\highway\\LICENSE",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\_core\\src\\multiarray\\dragon4_LICENSE.txt",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\_core\\src\\npysort\\x86-simd-sort\\LICENSE.md",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\_core\\src\\umath\\svml\\LICENSE",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\fft\\pocketfft\\LICENSE.md",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\linalg\\lapack_lite\\LICENSE.txt",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\ma\\LICENSE",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\random\\LICENSE.md",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\random\\src\\distributions\\LICENSE.md",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\random\\src\\mt19937\\LICENSE.md",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\random\\src\\pcg64\\LICENSE.md",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\random\\src\\philox\\LICENSE.md",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\random\\src\\sfc64\\LICENSE.md",
+      "numpy\\numpy-2.5.4.dist-info\\licenses\\numpy\\random\\src\\splitmix64\\LICENSE.md",
+      "numpy\\numpy\\_core\\include\\numpy\\random\\LICENSE.txt",
+      "numpy\\numpy\\ma\\LICENSE",
+      "numpy\\numpy\\random\\LICENSE.md"
+    ]
+  },
+  {
+    "name": "onnxruntime",
+    "version": "1.31.1",
+    "declared_license": "MIT License",
+    "notices": [
+      "onnxruntime\\onnxruntime\\LICENSE",
+      "onnxruntime\\onnxruntime\\ThirdPartyNotices.txt"
+    ]
+  },
+  {
+    "name": "opencv-python",
+    "version": "5.0.0.93",
+    "declared_license": "Apache 2.0",
+    "notices": [
+      "opencv-python\\cv2\\LICENSE-3RD-PARTY.txt",
+      "opencv-python\\cv2\\LICENSE.txt",
+      "opencv-python\\opencv_python-5.0.0.93.dist-info\\LICENSE-3RD-PARTY.txt",
+      "opencv-python\\opencv_python-5.0.0.93.dist-info\\LICENSE.txt"
+    ]
+  },
+  {
+    "name": "packaging",
+    "version": "26.3",
+    "declared_license": "Apache-2.0 OR BSD-2-Clause",
+    "notices": [
+      "packaging\\packaging-26.3.dist-info\\licenses\\LICENSE",
+      "packaging\\packaging-26.3.dist-info\\licenses\\LICENSE.APACHE",
+      "packaging\\packaging-26.3.dist-info\\licenses\\LICENSE.BSD"
+    ]
+  },
+  {
+    "name": "pdfminer.six",
+    "version": "20260107",
+    "declared_license": "MIT",
+    "notices": [
+      "pdfminer.six\\pdfminer_six-20260107.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "pdfplumber",
+    "version": "0.11.10",
+    "declared_license": "See included notices / project source",
+    "notices": [
+      "pdfplumber\\pdfplumber-0.11.10.dist-info\\licenses\\LICENSE.txt"
+    ]
+  },
+  {
+    "name": "pefile",
+    "version": "2024.8.26",
+    "declared_license": "MIT",
+    "notices": [
+      "pefile\\pefile-2024.8.26.dist-info\\LICENSE"
+    ]
+  },
+  {
+    "name": "pillow",
+    "version": "13.0.0",
+    "declared_license": "MIT-CMU",
+    "notices": [
+      "pillow\\pillow-13.0.0.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "pluggy",
+    "version": "1.7.0",
+    "declared_license": "MIT",
+    "notices": [
+      "pluggy\\pluggy-1.7.0.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "protobuf",
+    "version": "7.36.2",
+    "declared_license": "3-Clause BSD License",
+    "notices": [
+      "protobuf\\protobuf-7.36.2.dist-info\\LICENSE"
+    ]
+  },
+  {
+    "name": "pyclipper",
+    "version": "1.4.0",
+    "declared_license": "MIT",
+    "notices": [
+      "pyclipper\\pyclipper-1.4.0.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "pycparser",
+    "version": "3.12",
+    "declared_license": "BSD-3-Clause",
+    "notices": [
+      "pycparser\\pycparser-3.12.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "Pygments",
+    "version": "2.21.0",
+    "declared_license": "BSD-2-Clause",
+    "notices": [
+      "Pygments\\pygments-2.21.0.dist-info\\licenses\\AUTHORS",
+      "Pygments\\pygments-2.21.0.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "pyinstaller",
+    "version": "6.22.3",
+    "declared_license": "GPLv2-or-later with a special exception which allows to use PyInstaller to build and distribute non-free programs (including commercial ones)",
+    "notices": [
+      "pyinstaller\\pyinstaller-6.22.3.dist-info\\licenses\\COPYING.txt"
+    ]
+  },
+  {
+    "name": "pyinstaller-hooks-contrib",
+    "version": "2026.9",
+    "declared_license": "See included notices / project source",
+    "notices": [
+      "pyinstaller-hooks-contrib\\pyinstaller_hooks_contrib-2026.9.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "pypdf",
+    "version": "7.0.0",
+    "declared_license": "BSD-3-Clause",
+    "notices": [
+      "pypdf\\pypdf-7.0.0.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "pypdfium2",
+    "version": "5.15.1",
+    "declared_license": "BSD-3-Clause, Apache-2.0, dependency licenses",
+    "notices": [
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\SHARED\\Apache-2.0.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\abseil.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\agg23.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\all_except_musl\\llvm-libc.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\android\\catapult.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\android\\cpu_features.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\android\\libunwind.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\cibw_musl\\libgcc_and_libstdc++.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\dragonbox-Apache2-LLVM.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\dragonbox-Boost.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\fast_float.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\freetype.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\harfbuzz.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\highway.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\icu.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\lcms.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\libjpeg_turbo.ijg",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\libjpeg_turbo.md",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\libopenjpeg.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\libpng.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\libtiff.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\pbin_and_sbuild\\brotli.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\pbin_and_sbuild\\libyuv.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\pbin_musl\\musl.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\pdfium-binaries.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\pdfium.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\simdutf.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\v8_xfa\\bigint.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\v8_xfa\\fdlibm.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\v8_xfa\\fp16.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\v8_xfa\\inspector_protocol.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\v8_xfa\\strongtalk.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\v8_xfa\\v8.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\BUILD_LICENSES\\zlib.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\LICENSES\\Apache-2.0.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\LICENSES\\BSD-3-Clause.txt",
+      "pypdfium2\\pypdfium2-5.15.1.dist-info\\licenses\\LICENSES\\CC-BY-4.0.txt"
+    ]
+  },
+  {
+    "name": "PySide6_Essentials",
+    "version": "6.12.0",
+    "declared_license": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+    "notices": [
+      "PySide6_Essentials\\pyside6_essentials-6.12.0.dist-info\\licenses\\LicenseRef-Qt-Commercial.txt"
+    ]
+  },
+  {
+    "name": "pytest",
+    "version": "9.2.0",
+    "declared_license": "MIT",
+    "notices": [
+      "pytest\\pytest-9.2.0.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "python-docx",
+    "version": "1.2.0",
+    "declared_license": "MIT",
+    "notices": [
+      "python-docx\\python_docx-1.2.0.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "pywin32-ctypes",
+    "version": "0.2.3",
+    "declared_license": "BSD-3-Clause",
+    "notices": [
+      "pywin32-ctypes\\pywin32_ctypes-0.2.3.dist-info\\LICENSE.txt"
+    ]
+  },
+  {
+    "name": "PyYAML",
+    "version": "6.0.3",
+    "declared_license": "MIT",
+    "notices": [
+      "PyYAML\\pyyaml-6.0.3.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "rapidocr-onnxruntime",
+    "version": "1.4.4",
+    "declared_license": "Apache-2.0",
+    "notices": []
+  },
+  {
+    "name": "reportlab",
+    "version": "5.1.0",
+    "declared_license": "BSD license (see license.txt for details), Copyright (c) 2000-2025, ReportLab Inc.",
+    "notices": [
+      "reportlab\\reportlab-5.1.0.dist-info\\licenses\\LICENSE",
+      "reportlab\\reportlab\\fonts\\DarkGarden-copying-gpl.txt",
+      "reportlab\\reportlab\\fonts\\DarkGarden-copying.txt",
+      "reportlab\\reportlab\\fonts\\bitstream-vera-license.txt",
+      "reportlab\\reportlab\\license.txt"
+    ]
+  },
+  {
+    "name": "setuptools",
+    "version": "84.2.1",
+    "declared_license": "MIT",
+    "notices": [
+      "setuptools\\setuptools-84.2.1.dist-info\\licenses\\LICENSE",
+      "setuptools\\setuptools\\_vendor\\autocommand-2.2.2.dist-info\\LICENSE",
+      "setuptools\\setuptools\\_vendor\\backports.tarfile-1.2.0.dist-info\\LICENSE",
+      "setuptools\\setuptools\\_vendor\\importlib_metadata-8.7.1.dist-info\\licenses\\LICENSE",
+      "setuptools\\setuptools\\_vendor\\jaraco.text-4.0.0.dist-info\\LICENSE",
+      "setuptools\\setuptools\\_vendor\\jaraco_context-6.1.0.dist-info\\licenses\\LICENSE",
+      "setuptools\\setuptools\\_vendor\\jaraco_functools-4.4.0.dist-info\\licenses\\LICENSE",
+      "setuptools\\setuptools\\_vendor\\more_itertools-10.8.0.dist-info\\licenses\\LICENSE",
+      "setuptools\\setuptools\\_vendor\\packaging-26.3.dist-info\\licenses\\LICENSE",
+      "setuptools\\setuptools\\_vendor\\packaging-26.3.dist-info\\licenses\\LICENSE.APACHE",
+      "setuptools\\setuptools\\_vendor\\packaging-26.3.dist-info\\licenses\\LICENSE.BSD",
+      "setuptools\\setuptools\\_vendor\\platformdirs-4.4.0.dist-info\\licenses\\LICENSE",
+      "setuptools\\setuptools\\_vendor\\tomli-2.4.0.dist-info\\licenses\\LICENSE",
+      "setuptools\\setuptools\\_vendor\\wheel-0.46.3.dist-info\\licenses\\LICENSE.txt",
+      "setuptools\\setuptools\\_vendor\\zipp-3.23.0.dist-info\\licenses\\LICENSE",
+      "setuptools\\setuptools\\config\\NOTICE",
+      "setuptools\\setuptools\\config\\_validate_pyproject\\NOTICE"
+    ]
+  },
+  {
+    "name": "shapely",
+    "version": "2.2.0",
+    "declared_license": "BSD-3-Clause",
+    "notices": [
+      "shapely\\shapely-2.2.0.dist-info\\licenses\\LICENSE.txt",
+      "shapely\\shapely-2.2.0.dist-info\\licenses\\LICENSE_GEOS",
+      "shapely\\shapely-2.2.0.dist-info\\licenses\\LICENSE_win32"
+    ]
+  },
+  {
+    "name": "shiboken6",
+    "version": "6.12.0",
+    "declared_license": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only",
+    "notices": [
+      "shiboken6\\shiboken6-6.12.0.dist-info\\licenses\\LicenseRef-Qt-Commercial.txt"
+    ]
+  },
+  {
+    "name": "six",
+    "version": "1.17.0",
+    "declared_license": "MIT",
+    "notices": [
+      "six\\six-1.17.0.dist-info\\LICENSE"
+    ]
+  },
+  {
+    "name": "tqdm",
+    "version": "4.70.1",
+    "declared_license": "MPL-2.0 AND MIT",
+    "notices": [
+      "tqdm\\tqdm-4.70.1.dist-info\\licenses\\LICENCE"
+    ]
+  },
+  {
+    "name": "typing_extensions",
+    "version": "4.16.0",
+    "declared_license": "PSF-2.0",
+    "notices": [
+      "typing_extensions\\typing_extensions-4.16.0.dist-info\\licenses\\LICENSE"
+    ]
+  }
+]

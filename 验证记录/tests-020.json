@@ -1,0 +1,7 @@
+{
+  "version": "0.2.0",
+  "passed": 75,
+  "http_tests": "local mock only",
+  "production_host_credentials_used": false,
+  "windows_dpapi_roundtrip": true
+}

@@ -1,0 +1,23 @@
+{
+  "folders": [{ "path": "." }],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+    "files.encoding": "utf8",
+    "files.exclude": { "**/__pycache__": true, ".pytest_cache": true, "build": true },
+    "editor.tabSize": 4
+  },
+  "extensions": { "recommendations": ["ms-python.python", "ms-python.debugpy"] },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "启动 MarkFlow",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/main.py",
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal"
+      }
+    ]
+  }
+}

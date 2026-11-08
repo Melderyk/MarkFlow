@@ -1,0 +1,19 @@
+Qt / PySide6 and Shiboken6
+
+The installed PySide6-Essentials and Shiboken6 packages declare:
+LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only.
+
+This application uses the LGPL alternative and dynamically links the libraries.
+The application source is delivered separately. No modifications to Qt, PySide6
+or Shiboken6 are made. Their shared libraries are in _internal/PySide6 and
+_internal/shiboken6, and may be replaced with compatible builds.
+
+Version: 6.12.0
+Corresponding upstream source repositories / release tags:
+https://code.qt.io/cgit/pyside/pyside-setup.git/  (v6.12.0)
+https://code.qt.io/cgit/qt/qtbase.git/           (v6.12.0)
+https://code.qt.io/cgit/qt/qtsvg.git/            (v6.12.0)
+https://download.qt.io/official_releases/qt/6.12/6.12.0/submodules/
+
+Qt notices and source modules are available from the corresponding Qt release.
+LGPL-3.0 and GPL-3.0 texts are included in this folder.
