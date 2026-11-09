@@ -523,7 +523,7 @@ class MainWindow(QMainWindow):
                             ('图床链接＋本地备份', 'host'),
                             ('嵌入图片（单文件 MD）', 'embed')]:
             self.image_mode.addItem(label, mode)
-        self.image_mode.setToolTip('嵌入模式将 Base64 图片写入 MD，不上传、不另建图片文件夹；单图 8 MB、合计 16 MB。部分阅读器不支持。')
+        self.image_mode.setToolTip('嵌入模式将 Base64 图片写入 MD，不上传图片。\nTypora 官方历史说明约 2 MB 的文件限制，不同版本可能变化；大文档建议使用本地图片或图床。\nMarkFlow 转换限制：单图 8 MB、图片合计 16 MB、MD 32 MB，不代表 Typora 可打开这么大的文件。\n复杂 Word 原排版恢复仍需保留 .assets 参考目录。')
         self.host_btn=QPushButton('图床设置')
         self.host_btn.setObjectName('sideSmall')
         self.host_btn.clicked.connect(self.configure_host)
@@ -758,16 +758,20 @@ class MainWindow(QMainWindow):
 
     def configure_host(self):
         dialog=HostDialog(self.host_config,self.remember_token,self)
-        if dialog.exec()==QDialog.DialogCode.Accepted:
-            self.host_config=dialog.value
-            self.remember_token=dialog.remember.isChecked()
-            if self._save_config():
-                self.status.setText('图床配置已更新；选择图床模式后，转换时会上传图片。')
+        try:
+            if dialog.exec()==QDialog.DialogCode.Accepted:
+                self.host_config=dialog.value
+                self.remember_token=dialog.remember.isChecked()
+                if self._save_config():
+                    self.status.setText('图床配置已更新；选择图床模式后，转换时会上传图片。')
+        finally:
+            # Parent-owned modal dialogs otherwise survive every close/reopen.
+            dialog.deleteLater()
 
     def update_image_mode(self, *_):
         embedded = self.image_mode.currentData() == 'embed'
         self.chapters.setEnabled(not self.running and not embedded)
-        self.image_hint.setText('图片写入 MD；文件会增大，部分阅读器不支持。复杂 Word 原排版参考仍需保留 .assets。'
+        self.image_hint.setText('图片写入 MD。Typora 历史上限约 2 MB（版本可能变化）；大文档建议本地或图床。复杂 Word 仍需 .assets 参考。'
             if embedded else '图床模式会上传图片，并保留本地备份。'
             if self.image_mode.currentData() == 'host' else '本地图片与 Markdown 一起携带。')
 

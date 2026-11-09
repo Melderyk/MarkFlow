@@ -12,9 +12,7 @@
 
 English: MarkFlow is a Windows desktop PDF/DOCX-to-Markdown converter with local Chinese/English OCR, code blocks, an outline, image hosting adapters and chapter exports. Text conversion runs locally. Images are uploaded only when you choose hosting or explicitly start an upload. Download the portable build from Releases; source setup is below.
 
-当前版本 **0.3.0**，保留 0.2.2 的原依赖版本，增加可选格式扩展：HTML / Excel / PPT / LaTeX / 图片 / Markdown / JSON 导入，以及 Markdown、Word、Excel、PPT、HTML、PDF、LaTeX 和 JSON 导出。文档在本机处理；Markdown 仍作为可编辑工作文件保存。
-
-2026-11-09 本地验收修订加入图片嵌入选项，尚未上传 GitHub；本地源码包含晚于原 `v0.3.0` 标签的改动，下载页暂不代表此验收包。
+当前版本 **0.3.1**，保留 0.2.2 的原依赖版本，增加可选格式扩展：HTML / Excel / PPT / LaTeX / 图片 / Markdown / JSON 导入，以及 Markdown、Word、Excel、PPT、HTML、PDF、LaTeX 和 JSON 导出。包含 0.3.0 本地验收的图片嵌入、资源释放与大表格预览修复。文档在本机处理；Markdown 仍作为可编辑工作文件保存。
 
 ## 格式转换
 
@@ -47,7 +45,7 @@ English: MarkFlow is a Windows desktop PDF/DOCX-to-Markdown converter with local
 
 ## 使用免安装版
 
-1. 将 `MarkFlow-v0.3.0-windows-x64.zip` **完整解压**到一个可写目录。
+1. 将 `MarkFlow-v0.3.1-windows-x64.zip` **完整解压**到一个可写目录。
 2. 双击 `MarkFlow.exe`。程序需要同目录的 `_internal`，不要只移动 EXE。
 3. 点击“添加文件”，或把支持的文件拖入队列、编辑区、原文预览、大纲或窗口空白处。
 4. 选择输出目录、Markdown 格式，点击“开始转换”。
@@ -63,6 +61,8 @@ English: MarkFlow is a Windows desktop PDF/DOCX-to-Markdown converter with local
 也可选择 **“嵌入图片（单文件 MD）”**，将位图以 Base64 Data URL 写进 Markdown，不上传图片；普通文档不会另建 `.assets` 图片文件夹，也不生成分章副本，移动一个 `.md` 即可携带图片。软件内支持图片预览。单张图片最多 8 MB、图片合计 16 MB、嵌入后的 Markdown 最多 32 MB，超限请选择本地图片或拆分文档。
 
 Base64 会增大文件，部分 Markdown 阅读器或网站可能过滤嵌入图片；对外分享前请在目标阅读器检查。复杂 Word 的原排版恢复仍需 `.assets` 中的原 DOCX 和映射，嵌入图片不能替代这些参考文件。导出 LaTeX 时也会生成编译所需的图片文件。
+
+**Typora 文件大小提醒：**维护者在 [官方问题 #1961](https://github.com/typora/typora-issues/issues/1961#issuecomment-453126121) 中明确说明过将限制调整为 **2 MB**，用于避免大文件解析、渲染导致无响应。这是官方历史说明，不保证所有当前版本的精确阈值相同；[问题 #3909](https://github.com/typora/typora-issues/issues/3909) 也讨论了嵌入图片导致文档超过限制。软件在嵌入结果超过 2 MiB 时显示兼容性警告，不阻止转换；MarkFlow 的 32 MB 转换上限不代表 Typora 能打开该大小。以本机 1.14.15 验收时，约 18 MB 的嵌入文档被 Typora 拒绝。主要用 Typora 阅读长文档时，建议选择“本地图片”或“图床链接＋本地备份”；需要离线携带时将 MD 与 `.assets` 一起打包，或启用分章阅读。单文件图片嵌入不保证兼容 Typora 的大文件限制。
 
 | 接口模板 | 配置方式 |
 |---|---|

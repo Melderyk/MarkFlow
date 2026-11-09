@@ -10,9 +10,20 @@ MAX_IMAGE_BYTES = 8 * 1024 * 1024
 MAX_TOTAL_BYTES = 16 * 1024 * 1024
 MAX_DOCUMENT_BYTES = 32 * 1024 * 1024
 MAX_PIXELS = 24_000_000
+# Conservative compatibility guidance, not a conversion limit. Typora's
+# maintainer documented a historical 2 MB cap in typora-issues #1961;
+# installed versions may differ, so do not claim a universal exact limit.
+TYPORA_WARNING_BYTES = 2 * 1024 * 1024
 MIME_TYPES = {'PNG': 'image/png', 'JPEG': 'image/jpeg',
               'GIF': 'image/gif', 'WEBP': 'image/webp'}
 DATA_IMAGE = re.compile(r'^data:(image/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/]*={0,2})$', re.I)
+
+
+def typora_size_warning(byte_count):
+    if byte_count <= TYPORA_WARNING_BYTES:
+        return ''
+    return (f'嵌入后的 Markdown 约 {byte_count / 1024**2:.1f} MiB，可能超过 Typora 文件大小限制。'
+            '官方历史说明约 2 MB（不同版本可能变化）；建议使用本地图片、图床或分章阅读。')
 
 
 def image_data_url(data):

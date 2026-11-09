@@ -1,0 +1,330 @@
+{
+  "version": "0.3.1",
+  "iterations": 32,
+  "seconds": 162.48,
+  "workloads": [
+    "12,000-row CSV",
+    "30-heading DOCX with 3.1 MiB bitmap (embedded MD / Word export)",
+    "local 80-page PDF"
+  ],
+  "samples": [
+    {
+      "iteration": 1,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 348053,
+      "private_mb": 73.76,
+      "working_set_mb": 106.43,
+      "handles": 328
+    },
+    {
+      "iteration": 2,
+      "mode": "embed",
+      "format": "md",
+      "markdown_chars": 4364574,
+      "private_mb": 82.41,
+      "working_set_mb": 115.69,
+      "handles": 360
+    },
+    {
+      "iteration": 3,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 154918,
+      "private_mb": 89.91,
+      "working_set_mb": 121.42,
+      "handles": 361
+    },
+    {
+      "iteration": 4,
+      "mode": "embed",
+      "format": "docx",
+      "markdown_chars": 4364574,
+      "private_mb": 87.14,
+      "working_set_mb": 121.85,
+      "handles": 361
+    },
+    {
+      "iteration": 5,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 348053,
+      "private_mb": 88.1,
+      "working_set_mb": 123.15,
+      "handles": 361
+    },
+    {
+      "iteration": 6,
+      "mode": "embed",
+      "format": "md",
+      "markdown_chars": 4364574,
+      "private_mb": 88.53,
+      "working_set_mb": 123.11,
+      "handles": 361
+    },
+    {
+      "iteration": 7,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 154918,
+      "private_mb": 88.54,
+      "working_set_mb": 123.8,
+      "handles": 361
+    },
+    {
+      "iteration": 8,
+      "mode": "embed",
+      "format": "docx",
+      "markdown_chars": 4364574,
+      "private_mb": 89.98,
+      "working_set_mb": 124.66,
+      "handles": 361
+    },
+    {
+      "iteration": 9,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 348053,
+      "private_mb": 89.96,
+      "working_set_mb": 125.21,
+      "handles": 361
+    },
+    {
+      "iteration": 10,
+      "mode": "embed",
+      "format": "md",
+      "markdown_chars": 4364574,
+      "private_mb": 91.01,
+      "working_set_mb": 125.49,
+      "handles": 361
+    },
+    {
+      "iteration": 11,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 154918,
+      "private_mb": 95.46,
+      "working_set_mb": 127.52,
+      "handles": 359
+    },
+    {
+      "iteration": 12,
+      "mode": "embed",
+      "format": "docx",
+      "markdown_chars": 4364574,
+      "private_mb": 92.62,
+      "working_set_mb": 126.55,
+      "handles": 359
+    },
+    {
+      "iteration": 13,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 348053,
+      "private_mb": 93.39,
+      "working_set_mb": 128.04,
+      "handles": 359
+    },
+    {
+      "iteration": 14,
+      "mode": "embed",
+      "format": "md",
+      "markdown_chars": 4364574,
+      "private_mb": 93.37,
+      "working_set_mb": 127.71,
+      "handles": 359
+    },
+    {
+      "iteration": 15,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 154918,
+      "private_mb": 98.17,
+      "working_set_mb": 130.31,
+      "handles": 359
+    },
+    {
+      "iteration": 16,
+      "mode": "embed",
+      "format": "docx",
+      "markdown_chars": 4364574,
+      "private_mb": 95.33,
+      "working_set_mb": 129.42,
+      "handles": 359
+    },
+    {
+      "iteration": 17,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 348053,
+      "private_mb": 97.92,
+      "working_set_mb": 131.97,
+      "handles": 359
+    },
+    {
+      "iteration": 18,
+      "mode": "embed",
+      "format": "md",
+      "markdown_chars": 4364574,
+      "private_mb": 95.54,
+      "working_set_mb": 130.0,
+      "handles": 359
+    },
+    {
+      "iteration": 19,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 154918,
+      "private_mb": 97.6,
+      "working_set_mb": 132.34,
+      "handles": 359
+    },
+    {
+      "iteration": 20,
+      "mode": "embed",
+      "format": "docx",
+      "markdown_chars": 4364574,
+      "private_mb": 97.18,
+      "working_set_mb": 132.3,
+      "handles": 359
+    },
+    {
+      "iteration": 21,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 348053,
+      "private_mb": 98.29,
+      "working_set_mb": 133.48,
+      "handles": 359
+    },
+    {
+      "iteration": 22,
+      "mode": "embed",
+      "format": "md",
+      "markdown_chars": 4364574,
+      "private_mb": 98.96,
+      "working_set_mb": 133.62,
+      "handles": 359
+    },
+    {
+      "iteration": 23,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 154918,
+      "private_mb": 101.72,
+      "working_set_mb": 135.79,
+      "handles": 359
+    },
+    {
+      "iteration": 24,
+      "mode": "embed",
+      "format": "docx",
+      "markdown_chars": 4364574,
+      "private_mb": 104.55,
+      "working_set_mb": 137.09,
+      "handles": 355
+    },
+    {
+      "iteration": 25,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 348053,
+      "private_mb": 102.38,
+      "working_set_mb": 137.45,
+      "handles": 355
+    },
+    {
+      "iteration": 26,
+      "mode": "embed",
+      "format": "md",
+      "markdown_chars": 4364574,
+      "private_mb": 103.34,
+      "working_set_mb": 138.17,
+      "handles": 355
+    },
+    {
+      "iteration": 27,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 154918,
+      "private_mb": 105.98,
+      "working_set_mb": 139.7,
+      "handles": 352
+    },
+    {
+      "iteration": 28,
+      "mode": "embed",
+      "format": "docx",
+      "markdown_chars": 4364574,
+      "private_mb": 106.25,
+      "working_set_mb": 139.43,
+      "handles": 352
+    },
+    {
+      "iteration": 29,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 348053,
+      "private_mb": 110.41,
+      "working_set_mb": 144.53,
+      "handles": 352
+    },
+    {
+      "iteration": 30,
+      "mode": "embed",
+      "format": "md",
+      "markdown_chars": 4364574,
+      "private_mb": 105.34,
+      "working_set_mb": 139.65,
+      "handles": 352
+    },
+    {
+      "iteration": 31,
+      "mode": "local",
+      "format": "md",
+      "markdown_chars": 154918,
+      "private_mb": 106.57,
+      "working_set_mb": 141.0,
+      "handles": 352
+    },
+    {
+      "iteration": 32,
+      "mode": "embed",
+      "format": "docx",
+      "markdown_chars": 4364574,
+      "private_mb": 107.28,
+      "working_set_mb": 141.86,
+      "handles": 352
+    }
+  ],
+  "peak_ui_private_mb": 217.14,
+  "max_same_workload_growth_mb_over_8_jobs": 12.12,
+  "max_same_workload_handle_growth_over_8_jobs": 0,
+  "max_ui_heartbeat_gap_seconds": 0.547,
+  "heartbeat_gaps_over_half_second": [
+    {
+      "phase": "3: conversion / queue result",
+      "seconds": 0.515
+    },
+    {
+      "phase": "7: conversion / queue result",
+      "seconds": 0.516
+    },
+    {
+      "phase": "11: conversion / queue result",
+      "seconds": 0.516
+    },
+    {
+      "phase": "19: conversion / queue result",
+      "seconds": 0.547
+    },
+    {
+      "phase": "27: conversion / queue result",
+      "seconds": 0.531
+    }
+  ],
+  "no_active_conversion_processes_after_each_job": true,
+  "no_finished_worker_or_preview_image_accumulation": true,
+  "passed": true,
+  "scope": "32 repeated source UI workloads with Qt event processing; not an exhaustive or overnight leak proof"
+}

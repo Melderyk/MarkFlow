@@ -26,6 +26,20 @@ def bitmap(size=(120, 60)):
         return buffer.getvalue()
 
 
+def test_typora_size_guidance_is_advisory_and_prioritized(tmp_path, monkeypatch):
+    from markflow import embedded_images
+    limit=embedded_images.TYPORA_WARNING_BYTES
+    assert embedded_images.typora_size_warning(limit)==''
+    assert 'Typora' in embedded_images.typora_size_warning(limit+1)
+    monkeypatch.setattr(embedded_images,'TYPORA_WARNING_BYTES',1)
+    source=create_samples(tmp_path/'samples')[0]
+    result=Converter().convert(source,Options(tmp_path/'embed',image_mode='embed'))
+    assert result.output.is_file() and result.warnings[0].startswith('嵌入后的 Markdown')
+    assert 'Typora' in result.warnings[0] and result.assets_dir is None
+    local=Converter().convert(source,Options(tmp_path/'local',image_mode='local'))
+    assert not any('Typora' in warning for warning in local.warnings)
+
+
 def test_docx_single_md_carries_repeated_images_after_moving_alone(tmp_path, monkeypatch):
     source = tmp_path / 'source.docx'
     doc = Document()

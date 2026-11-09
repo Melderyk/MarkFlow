@@ -185,9 +185,13 @@ class Converter:
                 warnings.append("未提取到正文，请在原文预览中检查内容。")
             text = text.strip() + "\n"
             if options.image_mode == 'embed':
-                from .embedded_images import MAX_DOCUMENT_BYTES
-                if len(text.encode('utf-8')) > MAX_DOCUMENT_BYTES:
+                from .embedded_images import MAX_DOCUMENT_BYTES, typora_size_warning
+                markdown_bytes = len(text.encode('utf-8'))
+                if markdown_bytes > MAX_DOCUMENT_BYTES:
                     raise ConversionError('嵌入后的 Markdown 超过 32 MB，请拆分文档或选择本地图片模式。')
+                compatibility = typora_size_warning(markdown_bytes)
+                if compatibility:
+                    warnings.insert(0, compatibility)
                 if assets.count:
                     warnings.append('图片已嵌入 Markdown（Base64）；文件会增大，部分阅读器或网站可能不显示。')
                 if assets.folder.exists():

@@ -50,6 +50,10 @@ def run(destination, stress_source=None):
         embedded_target = document_index(embedded.markdown).images[0][2]
         decode_image_url(embedded_target)
         report['embedded_markdown'] = {'single_file': True, 'image_decoding': True}
+        from .embedded_images import typora_size_warning,TYPORA_WARNING_BYTES
+        assert 'Typora' in typora_size_warning(TYPORA_WARNING_BYTES+1)
+        assert not typora_size_warning(TYPORA_WARNING_BYTES)
+        report['typora_compatibility_notice'] = True
         from .image_host import protect_token,unprotect_token
         assert unprotect_token(protect_token('MarkFlow selfcheck'))=='MarkFlow selfcheck'
         report['windows_secret_store']=True

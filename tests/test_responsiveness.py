@@ -15,6 +15,23 @@ from tests.test_ui import qt_app, wait_for
 from tests.samples import create_samples
 
 
+def test_repeated_host_dialog_closes_release_native_children(qt_app,tmp_path,monkeypatch):
+    from PySide6.QtCore import QCoreApplication,QEvent
+    from PySide6.QtWidgets import QApplication
+    from markflow.ui_helpers import HostDialog
+    monkeypatch.setattr(app_module,'ROOT',tmp_path)
+    window=app_module.MainWindow()
+    try:
+        for _ in range(12):
+            QTimer.singleShot(0,lambda:QApplication.activeModalWidget().reject())
+            window.configure_host()
+            QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
+            qt_app.processEvents()
+            assert not window.findChildren(HostDialog)
+    finally:
+        window.close()
+
+
 def test_slow_source_preview_keeps_ui_alive_and_ignores_old_request(qt_app, tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, 'ROOT', tmp_path)
     entered=threading.Event()

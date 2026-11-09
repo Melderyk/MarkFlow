@@ -1,0 +1,11 @@
+{
+  "version": "0.3.1",
+  "date": "2026-11-09",
+  "passed": 132,
+  "failed": 0,
+  "exit_code": 0,
+  "seconds": 40.72,
+  "legacy_qt_drag_deprecation_warnings": 22,
+  "host_dialog_close_reopen_cycles": 12,
+  "pip_check": "passed"
+}
