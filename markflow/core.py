@@ -58,6 +58,7 @@ class Result:
     remote_images: dict[str,str] = field(default_factory=dict)
     chapters_dir: Path | None = None
     export: Path | None = None
+    embedded_images: int = 0
 
 
 def safe_name(value: str) -> str:
@@ -99,16 +100,30 @@ def image_link(alt: str, target: str, profile: str) -> str:
 
 
 class Assets:
-    def __init__(self, folder: Path, stem: str, profile: str):
+    def __init__(self, folder: Path, stem: str, profile: str, image_mode: str = 'local'):
         self.folder = folder / f"{stem}.assets"
         self.relative = self.folder.name
         self.profile = profile
         self.count = 0
         self.cache: dict[str, str] = {}
+        self.image_mode = image_mode
+        self.embedded_bytes = 0
 
     def add(self, data: bytes, extension: str, alt: str = "图片", key: str = "") -> str:
         if key and key in self.cache:
+            if self.image_mode == 'embed':
+                return f'![{escape(alt)}]({self.cache[key]})'
             return image_link(alt, self.cache[key], self.profile)
+        if self.image_mode == 'embed':
+            from .embedded_images import MAX_TOTAL_BYTES, image_data_url
+            target, size = image_data_url(data)
+            if self.embedded_bytes + size > MAX_TOTAL_BYTES:
+                raise ConversionError('嵌入图片合计超过 16 MB，请拆分文档或选择本地图片模式。')
+            self.embedded_bytes += size
+            self.count += 1
+            if key:
+                self.cache[key] = target
+            return f'![{escape(alt)}]({target})'
         self.folder.mkdir(exist_ok=True)
         self.count += 1
         extension = re.sub(r"[^a-z0-9]", "", extension.lower()) or "bin"
@@ -135,17 +150,20 @@ class Converter:
         source = Path(source).resolve()
         if not source.is_file():
             raise ConversionError("文件不存在或已被移动")
-        from .formats import INPUT_SUFFIXES, OUTPUT_SUFFIXES
+        from .formats import INPUT_SUFFIXES, OUTPUT_SUFFIXES, check_input
         if source.suffix.lower() not in INPUT_SUFFIXES:
             raise ConversionError("不支持此输入格式")
         if options.output_format not in OUTPUT_SUFFIXES:
             raise ConversionError("不支持的输出格式")
+        if options.image_mode not in {'local', 'host', 'embed'}:
+            raise ConversionError('不支持的图片模式')
+        check_input(source)
         options.output_dir = Path(options.output_dir).resolve()
         options.output_dir.mkdir(parents=True, exist_ok=True)
         stem = unique_stem(options.output_dir, source.stem, options.output_format)
         staging = options.output_dir / f".markflow-{uuid.uuid4().hex}"
         staging.mkdir()
-        assets = Assets(staging, stem, options.profile)
+        assets = Assets(staging, stem, options.profile, options.image_mode)
         warnings: list[str] = []
         try:
             self.check(cancel)
@@ -166,6 +184,14 @@ class Converter:
             if not text.strip():
                 warnings.append("未提取到正文，请在原文预览中检查内容。")
             text = text.strip() + "\n"
+            if options.image_mode == 'embed':
+                from .embedded_images import MAX_DOCUMENT_BYTES
+                if len(text.encode('utf-8')) > MAX_DOCUMENT_BYTES:
+                    raise ConversionError('嵌入后的 Markdown 超过 32 MB，请拆分文档或选择本地图片模式。')
+                if assets.count:
+                    warnings.append('图片已嵌入 Markdown（Base64）；文件会增大，部分阅读器或网站可能不显示。')
+                if assets.folder.exists():
+                    warnings.append('复杂 Word 的原排版参考仍保存在 .assets 中；需原排版恢复时请一起保留。')
             (staging / f"{stem}.md").write_text(text, encoding="utf-8", newline="\n")
             staged_export = None
             if options.output_format != "md":
@@ -192,6 +218,7 @@ class Converter:
                     shutil.rmtree(final_assets)
                 raise
             result=Result(source, destination, text, final_assets, pages, ocr_pages, warnings)
+            result.embedded_images = assets.count if options.image_mode == 'embed' else 0
             if staged_export is not None:
                 result.export = options.output_dir / staged_export.name
             if options.image_mode=='host' and final_assets:
@@ -214,7 +241,7 @@ class Converter:
                     warnings.append('图片上传已停止，完整文档与本地图片已保留。')
                 except Exception:
                     warnings.append('图床配置或上传失败，已保留本地图片与完整文档，请检查图床设置。')
-            if options.split_chapters:
+            if options.split_chapters and options.image_mode != 'embed':
                 from .markdown_tools import export_chapters
                 try:
                     result.chapters_dir=export_chapters(result.markdown,destination)
@@ -237,6 +264,7 @@ class Converter:
         blocks = []
         code = []
         preserve_layout = False
+        layout_positions = None
         def flush_code():
             if code:
                 blocks.append(fenced_code("\n".join(code)))
@@ -261,9 +289,11 @@ class Converter:
                     blocks.append(text)
             elif isinstance(block, Table):
                 flush_code()
-                from .word_layout import complex_table, table_html
+                from .word_layout import complex_table, table_html, text_positions
                 if complex_table(block):
-                    blocks.append(table_html(block, doc, assets, cancel))
+                    if layout_positions is None:
+                        layout_positions = text_positions(doc, cancel)
+                    blocks.append(table_html(block, doc, assets, cancel, layout_positions))
                     preserve_layout = True
                     continue
                 rows = []
@@ -387,17 +417,17 @@ class Converter:
                 scanned = is_scanned(page, raw, layout.has_outline)
                 if scanned and options.ocr:
                     progress(f"第 {index + 1}/{pages} 页 · 本地 OCR 识别")
-                    pil = render_page(renderer, index, scale=2.2)
-                    text = self.ocr_image(pil, cancel)
-                    ocr_count += 1
-                    if not text:
-                        warnings.append(f"第 {index + 1} 页 OCR 未识别出文字。")
-                    elif re.search(r"(?m)^`{3,}(?:c|asm|bash|powershell)\s*$",text):
-                        buffer=io.BytesIO()
-                        pil.save(buffer,format="PNG")
-                        reference=assets.add(buffer.getvalue(),"png",f"第 {index+1} 页 OCR 代码原图（核对符号）")
-                        text += "\n\n"+reference
-                        warnings.append(f"第 {index+1} 页包含 OCR 代码：括号、引号、0/O 和缩进需核对，已附原页图。")
+                    with render_page(renderer, index, scale=2.2) as pil:
+                        text = self.ocr_image(pil, cancel)
+                        ocr_count += 1
+                        if not text:
+                            warnings.append(f"第 {index + 1} 页 OCR 未识别出文字。")
+                        elif re.search(r"(?m)^`{3,}(?:c|asm|bash|powershell)\s*$",text):
+                            with io.BytesIO() as buffer:
+                                pil.save(buffer,format="PNG")
+                                reference=assets.add(buffer.getvalue(),"png",f"第 {index+1} 页 OCR 代码原图（核对符号）")
+                            text += "\n\n"+reference
+                            warnings.append(f"第 {index+1} 页包含 OCR 代码：括号、引号、0/O 和缩进需核对，已附原页图。")
                     blocks.append(text)
                     previous_tail = False
                 else:
@@ -604,7 +634,8 @@ def _render_page(document, index: int, scale: float = 1.3) -> Image.Image:
         width, height = page.get_size()
         scale = min(scale, 4500 / max(width, height))
         bitmap = page.render(scale=scale)
-        return bitmap.to_pil().convert("RGB").copy()
+        with bitmap.to_pil() as image:
+            return image.convert("RGB")
     finally:
         if bitmap is not None:
             bitmap.close()
@@ -656,6 +687,8 @@ def merge_results(results: list[Result], output_dir: Path, profile: str,
 
 def docx_preview_html(source: Path) -> str:
     """Semantic source preview; does not claim to reproduce Word pagination."""
+    from .formats import check_input
+    check_input(source)
     doc = Document(source)
     def para(p):
         chunks = []

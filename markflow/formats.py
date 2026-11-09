@@ -41,8 +41,8 @@ MAX_IMAGE_PIXELS = 24_000_000
 def check_input(source):
     from .core import ConversionError
     if source.stat().st_size > MAX_INPUT_BYTES:
-        raise ConversionError('扩展格式输入超过 64 MB，请拆分文件。')
-    if source.suffix.lower() in {'.xlsx', '.pptx'}:
+        raise ConversionError('输入超过 64 MB，请拆分文件。')
+    if source.suffix.lower() in {'.docx', '.xlsx', '.pptx'}:
         with ZipFile(source) as archive:
             if sum(item.file_size for item in archive.infolist()) > MAX_UNPACKED_BYTES:
                 raise ConversionError('文档解压后超过 256 MB，请拆分文件。')
@@ -443,11 +443,22 @@ def import_document(converter, source, assets, options, warnings, progress, canc
         if isinstance(data, dict) and data.get('schema') == 'markflow.document.v1':
             from .core import escape, markdown_table
             parts = []
+            cells = chars = 0
             for block in data['blocks']:
                 Converter.check(cancel)
                 if block['type'] == 'table':
-                    parts.append(markdown_table([[cell_text(c) for c in r] for r in block['rows']]))
+                    rows = block['rows']
+                    width = max((len(row) for row in rows), default=0)
+                    cells += len(rows) * width
+                    chars += sum(len(str(c)) for row in rows for c in row if c is not None)
+                    if len(rows) > MAX_ROWS or width > MAX_COLUMNS or cells > MAX_CELLS or chars > MAX_TEXT_CHARS:
+                        raise ConversionError('JSON 表格补齐空列后超过容量限制，请拆分文档。')
+                    if rows:
+                        parts.append(markdown_table([[cell_text(c) for c in row] for row in rows]))
                 else:
+                    chars += len(block['text'])
+                    if chars > MAX_TEXT_CHARS:
+                        raise ConversionError('JSON 文本超过容量限制，请拆分文档。')
                     text = escape(block['text'])
                     heading = re.search(r'Heading ([1-6])', block.get('style', ''))
                     parts.append('#' * int(heading[1]) + ' ' + text if heading else text)
@@ -470,6 +481,9 @@ def export_document(text, destination, *, base, structured=None, cancel=None):
         raise ConversionError('不支持的输出格式')
     Converter.check(cancel)
     temporary = destination.with_name('.' + destination.stem + '-' + uuid.uuid4().hex + destination.suffix)
+    written_media = []
+    created_media_folder = None
+    committed = False
     try:
         if suffix == 'md':
             temporary.write_text(text, encoding='utf-8')
@@ -489,6 +503,34 @@ def export_document(text, destination, *, base, structured=None, cancel=None):
                     node['c'][1] = '<br>' if node['c'] == ['html', '<br>'] else ''
                 if node.get('t') == 'Image':
                     target = node['c'][-1][0]
+                    if target.startswith('data:'):
+                        from .embedded_images import decode_image_url
+                        data, mime = decode_image_url(target)
+                        if suffix == 'tex':
+                            # TeX needs a file even when the Markdown carries data URLs.
+                            # Reuse the document's assets directory for these resources.
+                            import hashlib
+                            folder = destination.with_suffix('.assets')
+                            if not folder.resolve().is_relative_to(destination.parent.resolve()):
+                                raise ConversionError('LaTeX 图片目录必须位于导出目录内。')
+                            if not folder.exists():
+                                created_media_folder = folder
+                            folder.mkdir(exist_ok=True)
+                            if mime not in {'image/png', 'image/jpeg'}:
+                                from PIL import Image
+                                with Image.open(io.BytesIO(data)) as image, image.convert('RGB') as rgb, io.BytesIO() as buffer:
+                                    rgb.save(buffer, format='PNG')
+                                    data = buffer.getvalue()
+                                mime = 'image/png'
+                            extension = '.png' if mime == 'image/png' else '.jpg'
+                            path = folder / ('embedded-' + hashlib.sha256(data).hexdigest() + extension)
+                            if not path.exists():
+                                written_media.append(path)
+                                path.write_bytes(data)
+                            elif path.is_symlink() or path.stat().st_size != len(data) or path.read_bytes() != data:
+                                raise ConversionError('已有的 LaTeX 图片资源不匹配，请更换导出目录。')
+                            node['c'][-1][0] = os.path.relpath(path, destination.parent).replace('\\', '/')
+                        continue
                     try:
                         path = local_image(target, Path(base))
                     except ConversionError:
@@ -514,8 +556,17 @@ def export_document(text, destination, *, base, structured=None, cancel=None):
                 pandoc(payload, 'json', writer, output=temporary, cancel=cancel)
         Converter.check(cancel)
         os.replace(temporary, destination)
+        committed = True
     finally:
         temporary.unlink(missing_ok=True)
+        if not committed:
+            for path in written_media:
+                path.unlink(missing_ok=True)
+            if created_media_folder is not None:
+                try:
+                    created_media_folder.rmdir()
+                except OSError:
+                    pass
 
 
 def _export_word_reference(text, destination, base, cancel):

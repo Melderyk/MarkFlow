@@ -1,0 +1,54 @@
+{
+  "version": "0.3.0",
+  "frozen": true,
+  "checks": [
+    {
+      "file": "01_Word示例.docx",
+      "pages": 0,
+      "ocr_pages": 0,
+      "passed": true
+    },
+    {
+      "file": "02_文字PDF示例.pdf",
+      "pages": 2,
+      "ocr_pages": 0,
+      "passed": true
+    },
+    {
+      "file": "03_扫描PDF示例.pdf",
+      "pages": 1,
+      "ocr_pages": 1,
+      "passed": true
+    }
+  ],
+  "embedded_markdown": {
+    "single_file": true,
+    "image_decoding": true,
+    "gui_conversion_and_preview": true
+  },
+  "windows_secret_store": true,
+  "responsiveness": {
+    "pages": 80,
+    "headings": 506,
+    "code_blocks": 618,
+    "outline_mouse_clicks": 676,
+    "navigation_toggles": 134,
+    "resize_move_during_conversion": 661,
+    "conversion_seconds": 13.45,
+    "max_outline_action_seconds": 0.204,
+    "max_ui_heartbeat_gap_seconds": 0.25,
+    "peak_ui_working_set_mb": 358.8,
+    "text_and_code_unchanged": true,
+    "passed": true
+  },
+  "ui_features": {
+    "child_viewport_drop": true,
+    "outline_navigation": true,
+    "manual_code_language_and_save": true,
+    "bounded_preview": true,
+    "event_loop_shutdown": true
+  },
+  "passed": true,
+  "system_exit_code": 0,
+  "exe_sha256": "3d443fe969e39e41506275e8dfa6b380788be209e39c287eaf20d9ca0413809c"
+}

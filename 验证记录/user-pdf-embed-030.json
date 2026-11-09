@@ -1,0 +1,12 @@
+{
+  "pages": 80,
+  "headings": 506,
+  "code_blocks": 618,
+  "embedded_images": 117,
+  "markdown_bytes": 18030391,
+  "seconds": 13.0,
+  "single_file": true,
+  "every_embedded_image_decoded": true,
+  "headings_and_code_unchanged": true,
+  "passed": true
+}

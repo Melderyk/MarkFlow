@@ -52,3 +52,4 @@ runtime lock. Their fixed versions and upstream licenses are listed below.
 | typing_extensions | 4.16.0 | PSF-2.0 |
 | xlrd | 2.0.2 | BSD-3-Clause |
 | soupsieve | 4.0.1 | MIT |
+| XlsxWriter | 3.3.1 | BSD-2-Clause |

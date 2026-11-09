@@ -19,12 +19,14 @@ from PySide6.QtWidgets import (
     QPlainTextEdit, QProgressBar, QPushButton, QScrollArea, QSizePolicy,
     QSpinBox, QSplitter, QStackedWidget, QTabWidget, QTextBrowser, QVBoxLayout, QWidget, QDialog,
 )
+from shiboken6 import delete, isValid
 
 from .core import Cancelled, Converter, Options, Result, atomic_write, docx_preview_html, merge_results, pdf_preview
 from . import __version__
 from .image_host import HostConfig, ImageUploader, upload_images, protect_token, unprotect_token
 from .markdown_tools import document_index, change_language, preview_sections, export_chapters, rewrite_images
-from .ui_helpers import HostDialog, PreviewBrowser
+from .ui_helpers import HostDialog
+from .embedded_preview import EmbeddedPreviewBrowser as PreviewBrowser
 from .outline import OutlineTree, OutlineItem
 from .formats import FILE_FILTER, INPUT_SUFFIXES, OUTPUT_FORMATS
 
@@ -293,6 +295,11 @@ class OriginalPreview(QWidget):
         self.pil = None
         self._image = None
         self._image_key = None
+        self.image.clear()
+        previous = self.word.document()
+        self.word.setDocument(QTextDocument(self.word))
+        if isValid(previous):
+            delete(previous)
         self.page_count = 0
         self.controls.hide()
         if source is None:
@@ -346,15 +353,16 @@ class OriginalPreview(QWidget):
         request, value, count, error = result
         serial, source, page = request
         if serial != self._request_serial or source != self.source:
+            if hasattr(value, 'close'):
+                value.close()
             return
         if error:
             self.placeholder.setText('原文暂时无法预览\n' + error)
             self.stack.setCurrentWidget(self.placeholder)
             return
         if source.suffix.lower()=='.pdf':
-            self.pil = value
-            pil = value.convert('RGB')
-            self._image = QImage(pil.tobytes(), pil.width, pil.height, pil.width*3, QImage.Format.Format_RGB888).copy()
+            with value, value.convert('RGB') as pil:
+                self._image = QImage(pil.tobytes(), pil.width, pil.height, pil.width*3, QImage.Format.Format_RGB888).copy()
             self._image_key = None
             self.page_count = count
             self.page.blockSignals(True)
@@ -500,7 +508,7 @@ class MainWindow(QMainWindow):
         self.profile = QComboBox()
         self.profile.setObjectName("profile")
         self.profile.addItems(PROFILES)
-        self.profile.setToolTip("三种模式均使用相对图片链接；合并目录按阅读器适配")
+        self.profile.setToolTip("适配目录与 Markdown 语法；图片携带方式由下方图片选项决定")
         side.addWidget(self.profile)
         side.addWidget(self._side_label("导出格式"))
         self.output_format = QComboBox()
@@ -511,16 +519,25 @@ class MainWindow(QMainWindow):
         image_row=QHBoxLayout()
         self.image_mode=QComboBox()
         self.image_mode.setObjectName('profile')
-        self.image_mode.addItems(['本地图片','图床链接＋本地备份'])
+        for label, mode in [('本地图片（独立文件夹）', 'local'),
+                            ('图床链接＋本地备份', 'host'),
+                            ('嵌入图片（单文件 MD）', 'embed')]:
+            self.image_mode.addItem(label, mode)
+        self.image_mode.setToolTip('嵌入模式将 Base64 图片写入 MD，不上传、不另建图片文件夹；单图 8 MB、合计 16 MB。部分阅读器不支持。')
         self.host_btn=QPushButton('图床设置')
         self.host_btn.setObjectName('sideSmall')
         self.host_btn.clicked.connect(self.configure_host)
         image_row.addWidget(self.image_mode,1)
         image_row.addWidget(self.host_btn)
         side.addLayout(image_row)
+        self.image_hint = QLabel('本地图片与 Markdown 一起携带。')
+        self.image_hint.setObjectName('sideCaption')
+        self.image_hint.setWordWrap(True)
+        side.addWidget(self.image_hint)
         self.chapters=QCheckBox('长文档同时生成分章阅读版')
         self.chapters.setObjectName('sideCheck')
         self.chapters.setChecked(True)
+        self.image_mode.currentIndexChanged.connect(self.update_image_mode)
         side.addWidget(self.chapters)
         self.ocr = QCheckBox("扫描页自动识别（中文 / 英文）")
         self.ocr.setObjectName("sideCheck")
@@ -706,7 +723,7 @@ class MainWindow(QMainWindow):
             self.profile.setCurrentText(data.get("profile", PROFILES[0]))
             self.output_format.setCurrentText(next((label for label, ext in OUTPUT_FORMATS.items() if ext == data.get('output_format')), 'Markdown (.md)'))
             self.ocr.setChecked(data.get("ocr", True))
-            self.image_mode.setCurrentIndex(1 if data.get('image_mode')=='host' else 0)
+            self.image_mode.setCurrentIndex(max(0, self.image_mode.findData(data.get('image_mode', 'local'))))
             self.chapters.setChecked(data.get('chapters',True))
             self.host_config=HostConfig(**data.get('host',{}))
             self.remember_token=bool(data.get('encrypted_token'))
@@ -727,7 +744,7 @@ class MainWindow(QMainWindow):
         try:
             atomic_write(ROOT / "markflow-settings.json", json.dumps({
                 "output": self.output_edit.text(), "profile": self.profile.currentText(), "ocr": self.ocr.isChecked(),
-                'image_mode':'host' if self.image_mode.currentIndex() else 'local',
+                'image_mode':self.image_mode.currentData(),
                 'chapters':self.chapters.isChecked(),'host':self.host_config.public(),
                 'output_format':OUTPUT_FORMATS[self.output_format.currentText()],
                 'encrypted_token':encrypted
@@ -746,6 +763,13 @@ class MainWindow(QMainWindow):
             self.remember_token=dialog.remember.isChecked()
             if self._save_config():
                 self.status.setText('图床配置已更新；选择图床模式后，转换时会上传图片。')
+
+    def update_image_mode(self, *_):
+        embedded = self.image_mode.currentData() == 'embed'
+        self.chapters.setEnabled(not self.running and not embedded)
+        self.image_hint.setText('图片写入 MD；文件会增大，部分阅读器不支持。复杂 Word 原排版参考仍需保留 .assets。'
+            if embedded else '图床模式会上传图片，并保留本地备份。'
+            if self.image_mode.currentData() == 'host' else '本地图片与 Markdown 一起携带。')
 
     def pick_files(self):
         paths, _ = QFileDialog.getOpenFileNames(self, "添加文档", "", FILE_FILTER)
@@ -801,6 +825,7 @@ class MainWindow(QMainWindow):
             self.file_title.setText("从一份文档开始")
             self.original.show_source(None)
             self.editor.clear()
+            self.rendered.setMarkdown('')
             self.detail.setText("选择文件后，可在两侧对照查看和编辑")
         self.editor.blockSignals(False)
         self.rebuild_navigation()
@@ -821,6 +846,8 @@ class MainWindow(QMainWindow):
                 summary += "\n" + "；".join(result.warnings[:4])
             if result.remote_images:
                 summary+=f' · {len(result.remote_images)} 张图床链接（本地副本保留）'
+            if result.embedded_images:
+                summary += f' · {result.embedded_images} 张图片已嵌入 MD'
             if result.chapters_dir:
                 summary+=' · 已生成分章阅读版'
             self.notice.setText(summary)
@@ -973,6 +1000,7 @@ class MainWindow(QMainWindow):
         self.apply_language_btn.setEnabled(bool(entry and entry.result and self.index.codes) and not self.running)
         self.chapter_btn.setEnabled(bool(entry and entry.result and entry.result.chapters_dir) and not self.running)
         self.publish_btn.setEnabled(bool(entry and entry.result) and not self.running)
+        self.update_image_mode()
         self.export_btn.setEnabled(bool(entry and entry.result) and not self.running)
 
     def publish_current(self):
@@ -1041,7 +1069,7 @@ class MainWindow(QMainWindow):
         if not output:
             QMessageBox.warning(self, "请选择目录", "请先设置输出目录。")
             return
-        if self.image_mode.currentIndex():
+        if self.image_mode.currentData() == 'host':
             try: self.host_config.validate()
             except ValueError as exc:
                 QMessageBox.warning(self,'请配置图床',str(exc))
@@ -1058,7 +1086,7 @@ class MainWindow(QMainWindow):
             self.entries[index].status = "等待转换"
             self.update_item(index)
         self.worker = BatchWorker(jobs, Options(Path(output), self.profile.currentText(), self.ocr.isChecked(),
-            'host' if self.image_mode.currentIndex() else 'local',self.host_config,self.chapters.isChecked(),
+            self.image_mode.currentData(),self.host_config,self.chapters.isChecked(),
             OUTPUT_FORMATS[self.output_format.currentText()]), self)
         self.worker.progress.connect(self.on_progress)
         self.worker.converted.connect(self.on_converted)

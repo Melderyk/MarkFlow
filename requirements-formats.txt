@@ -7,3 +7,4 @@ xlrd==2.0.2
 beautifulsoup4==4.15.0
 et_xmlfile==2.0.0
 soupsieve==4.0.1
+XlsxWriter==3.3.1

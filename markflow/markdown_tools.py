@@ -111,20 +111,39 @@ def change_language(markdown, block, language):
 
 
 def preview_sections(markdown, target=14000):
-    """Bound layout work without ever splitting a fenced block."""
+    """Bound layout work; repeat a large table's header on preview pages only."""
     lines=markdown.splitlines(keepends=True)
     index=document_index(markdown)
+    # A spreadsheet can produce thousands of adjacent rows with no blank lines.
+    # Qt otherwise lays out the entire table synchronously in one preview page.
+    table_rows={}
+    delimiter=re.compile(r'^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$')
+    i=0
+    while i+1<len(lines):
+        if (i in index.outside and i+1 in index.outside and '|' in lines[i]
+                and delimiter.fullmatch(lines[i+1].rstrip('\r\n'))):
+            header=''.join(lines[i:i+2])
+            j=i+2
+            while j<len(lines) and j in index.outside and lines[j].strip() and '|' in lines[j]:
+                table_rows[j]=header
+                j+=1
+            i=j
+        else:
+            i+=1
     sections=[]
     start=0
     size=0
+    prefix=''
     for i,line in enumerate(lines):
-        if i>start and size>=target and i in index.outside and (line.startswith('#') or not line.strip()):
-            sections.append((start,i,''.join(lines[start:i])))
+        if (i>start and size>=target and i in index.outside
+                and (line.startswith('#') or not line.strip() or i in table_rows)):
+            sections.append((start,i,prefix+''.join(lines[start:i])))
             start=i
-            size=0
+            prefix=table_rows.get(i,'')
+            size=len(prefix)
         size+=len(line)
     if lines:
-        sections.append((start,len(lines),''.join(lines[start:])))
+        sections.append((start,len(lines),prefix+''.join(lines[start:])))
     return sections
 
 

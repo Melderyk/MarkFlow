@@ -202,6 +202,30 @@ def test_preview_sections_preserve_fences_and_all_text():
     assert all(not any('未闭合' in i.message for i in document_index(s[2]).issues) for s in sections)
 
 
+def test_large_table_preview_pages_keep_headers_and_every_source_row():
+    header='| Name | Value |\n| :--- | ---: |\n'
+    rows=[f'| row-{i} | {i} |\n' for i in range(12000)]
+    text='# Data\n\n'+header+''.join(rows)+'\n# End\n'
+    sections=preview_sections(text)
+    assert len(sections)>10
+    source_lines=text.splitlines(keepends=True)
+    restored=[]
+    for start,end,content in sections:
+        original=''.join(source_lines[start:end])
+        assert content in (original,header+original)
+        assert len(content)<14500
+        restored.append(original)
+        if original.startswith('| row-'):
+            assert content.startswith(header)
+    assert ''.join(restored)==text
+    assert sum(s[2].count('| row-') for s in sections)==len(rows)
+
+
+def test_table_like_code_remains_one_intact_preview_block():
+    text='```text\n| Header | Value |\n| --- | --- |\n'+('| code | example |\n'*1000)+'```\n'
+    assert preview_sections(text,target=1000)==[(0,len(text.splitlines()),text)]
+
+
 def test_chapter_exports_have_valid_assets_links_and_all_blocks(tmp_path):
     assets=tmp_path/'book.assets'
     assets.mkdir()

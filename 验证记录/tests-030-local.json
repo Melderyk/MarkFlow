@@ -1,0 +1,14 @@
+{
+  "version": "0.3.0",
+  "date": "2026-11-09",
+  "baseline_passed": 112,
+  "final_passed": 130,
+  "failed": 0,
+  "exit_code": 0,
+  "seconds": 37.82,
+  "warnings": {
+    "legacy_qt_drag_event_deprecations": 22,
+    "pytest_cache_write_permission": 1
+  },
+  "scope": "Local Windows x64, Python 3.12.14, PySide6 6.12.0; not published"
+}

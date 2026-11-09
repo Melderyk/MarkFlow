@@ -188,3 +188,29 @@ def test_cancelled_export_preserves_existing_file(tmp_path):
     assert destination.read_text(encoding='utf-8') == 'original'
     assert list(tmp_path.iterdir()) == [destination]
 
+
+def test_docx_package_limit_precedes_loading_in_conversion_and_preview(tmp_path, monkeypatch):
+    from markflow import core, formats
+    source = tmp_path / 'oversized.docx'
+    Document().save(source)
+    monkeypatch.setattr(formats, 'MAX_UNPACKED_BYTES', 100)
+    def must_not_load(*args):
+        raise AssertionError('DOCX must be checked before unzipping/parsing')
+    monkeypatch.setattr(core, 'Document', must_not_load)
+    for action in (lambda: Converter().convert(source, Options(tmp_path / 'out')),
+                   lambda: core.docx_preview_html(source)):
+        with pytest.raises(ConversionError, match='解压后超过'):
+            action()
+    assert not (tmp_path / 'out').exists()
+
+
+def test_document_json_bounds_padded_sparse_tables(tmp_path, monkeypatch):
+    from markflow import formats
+    monkeypatch.setattr(formats, 'MAX_CELLS', 20)
+    source = tmp_path / 'document.json'
+    source.write_text(json.dumps({'schema': 'markflow.document.v1', 'blocks': [
+        {'type': 'table', 'rows': [['A', 'B', 'C', 'D', 'E'], [1], [2], [3], [4]]}]}), encoding='utf8')
+    with pytest.raises(ConversionError, match='补齐空列后'):
+        Converter().convert(source, Options(tmp_path / 'out'))
+    assert not list((tmp_path / 'out').iterdir())
+

@@ -127,3 +127,20 @@ def test_standalone_html_table_exports_merges_without_layout_reference(tmp_path)
     assert doc.tables[0]._tbl.xpath('.//w:vMerge')
     with ZipFile(destination) as archive:
         assert archive.read('word/document.xml').count(b'Merged title') == 1
+
+
+def test_many_merged_tables_share_one_document_position_map(tmp_path, monkeypatch):
+    from markflow import word_layout
+    doc = Document()
+    for i in range(20):
+        doc.add_table(rows=1, cols=2).cell(0, 0).merge(doc.tables[-1].cell(0, 1)).text = f'Table {i}'
+    source = tmp_path / 'tables.docx'
+    doc.save(source)
+    original = word_layout.text_positions
+    calls = []
+    def positions(*args):
+        calls.append(1)
+        return original(*args)
+    monkeypatch.setattr(word_layout, 'text_positions', positions)
+    result = Converter().convert(source, Options(tmp_path / 'out'))
+    assert result.markdown.count('<table ') == 20 and len(calls) == 1

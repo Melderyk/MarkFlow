@@ -24,11 +24,23 @@ def complex_table(table):
     return bool(table._tbl.xpath('.//w:gridSpan[@w:val!="1"]|.//w:vMerge|./w:tr/w:tc/w:tbl'))
 
 
-def table_html(table, doc, assets, cancel):
+def text_positions(doc, cancel):
+    from .core import Converter
+    maps = []
+    for tag in ('w:t', 'w:p'):
+        positions = {}
+        for i, node in enumerate(doc.element.body.iter(qn(tag))):
+            if i % 1024 == 0:
+                Converter.check(cancel)
+            positions[node] = i
+        maps.append(positions)
+    return maps
+
+
+def table_html(table, doc, assets, cancel, positions=None):
     """Walk physical cells once; row.cells repeats horizontally/vertically merged cells."""
     from .core import Converter
-    text_ids = {node: i for i, node in enumerate(doc.element.body.iter(qn('w:t')))}
-    paragraph_ids = {node: i for i, node in enumerate(doc.element.body.iter(qn('w:p')))}
+    text_ids, paragraph_ids = positions if positions is not None else text_positions(doc, cancel)
 
     def paragraph(p):
         parts = []

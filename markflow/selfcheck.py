@@ -42,6 +42,14 @@ def run(destination, stress_source=None):
             results.append(result)
             report["checks"].append({"file": path.name, "pages": result.pages, "ocr_pages": result.ocr_pages, "passed": True})
         assert len(results) == 3
+        from .embedded_images import decode_image_url
+        from .markdown_tools import document_index
+        embedded = converter.convert(results[0].source, Options(output / 'embedded', image_mode='embed'))
+        assert embedded.embedded_images and embedded.assets_dir is None
+        assert list(embedded.output.parent.iterdir()) == [embedded.output]
+        embedded_target = document_index(embedded.markdown).images[0][2]
+        decode_image_url(embedded_target)
+        report['embedded_markdown'] = {'single_file': True, 'image_decoding': True}
         from .image_host import protect_token,unprotect_token
         assert unprotect_token(protect_token('MarkFlow selfcheck'))=='MarkFlow selfcheck'
         report['windows_secret_store']=True
@@ -104,6 +112,26 @@ def run(destination, stress_source=None):
         window.outline.collapseAll()
         app.processEvents()
         window.grab().save(str(output / "selfcheck-ui.png"))
+        window.clear_queue()
+        window.image_mode.setCurrentIndex(window.image_mode.findData('embed'))
+        window.output_edit.setText(str(output / 'embedded-ui'))
+        window.add_files([results[0].source])
+        window.start_batch()
+        deadline = time.monotonic() + 60
+        while window.running or window.original.is_loading():
+            app.processEvents()
+            time.sleep(.01)
+            if time.monotonic() > deadline:
+                raise RuntimeError('Embedded Markdown GUI self-check timed out')
+        assert window.entries[0].result and window.entries[0].result.embedded_images
+        window.tabs.setCurrentIndex(1)
+        app.processEvents()
+        from PySide6.QtGui import QTextDocument
+        image = window.rendered.document().resource(QTextDocument.ResourceType.ImageResource, QUrl(embedded_target))
+        assert image is not None and not image.isNull()
+        window.grab().save(str(output / 'selfcheck-embedded-ui.png'))
+        report['embedded_markdown']['gui_conversion_and_preview'] = True
+        window.image_mode.setCurrentIndex(0)
         if stress_source:
             from .performance_check import exercise
             report['responsiveness']=exercise(app,window,Path(stress_source),output)
