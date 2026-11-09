@@ -385,5 +385,64 @@
     "notices": [
       "typing_extensions\\typing_extensions-4.16.0.dist-info\\licenses\\LICENSE"
     ]
+  },
+  {
+    "name": "openpyxl",
+    "version": "3.1.5",
+    "declared_license": "MIT",
+    "notices": [
+      "openpyxl\\openpyxl-3.1.5.dist-info\\LICENCE.rst"
+    ]
+  },
+  {
+    "name": "python-pptx",
+    "version": "1.0.2",
+    "declared_license": "MIT",
+    "notices": [
+      "python-pptx\\python_pptx-1.0.2.dist-info\\LICENSE"
+    ]
+  },
+  {
+    "name": "xlrd",
+    "version": "2.0.2",
+    "declared_license": "BSD",
+    "notices": [
+      "xlrd\\xlrd-2.0.2.dist-info\\LICENSE"
+    ]
+  },
+  {
+    "name": "beautifulsoup4",
+    "version": "4.15.0",
+    "declared_license": "MIT License",
+    "notices": [
+      "beautifulsoup4\\beautifulsoup4-4.15.0.dist-info\\licenses\\AUTHORS",
+      "beautifulsoup4\\beautifulsoup4-4.15.0.dist-info\\licenses\\LICENSE"
+    ]
+  },
+  {
+    "name": "et_xmlfile",
+    "version": "2.0.0",
+    "declared_license": "MIT",
+    "notices": [
+      "et_xmlfile\\et_xmlfile-2.0.0.dist-info\\AUTHORS.txt",
+      "et_xmlfile\\et_xmlfile-2.0.0.dist-info\\LICENCE.python",
+      "et_xmlfile\\et_xmlfile-2.0.0.dist-info\\LICENCE.rst"
+    ]
+  },
+  {
+    "name": "soupsieve",
+    "version": "4.0.1",
+    "declared_license": "MIT",
+    "notices": [
+      "soupsieve\\soupsieve-4.0.1.dist-info\\licenses\\LICENSE.md"
+    ]
+  },
+  {
+    "name": "pypandoc_binary",
+    "version": "1.17",
+    "declared_license": "MIT",
+    "notices": [
+      "pypandoc_binary\\pypandoc\\files\\COPYRIGHT.txt"
+    ]
   }
 ]

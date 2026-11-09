@@ -1,6 +1,6 @@
 # 墨页 MarkFlow
 
-本地 PDF / DOCX 转 Markdown 桌面工具：离线中英文 OCR、标题与代码整理、图片导出、图床接口、对照编辑和长文档分章阅读。
+本地 PDF、Word、Excel、PPT、HTML、LaTeX、Markdown、JSON 和图片互转桌面工具：离线中英文 OCR、标题与代码整理、图片导出、图床接口、对照编辑和长文档分章阅读。
 
 **Windows 10 / 11 x64 · 中文界面 · Python 3.12 · MIT**
 
@@ -12,13 +12,42 @@
 
 English: MarkFlow is a Windows desktop PDF/DOCX-to-Markdown converter with local Chinese/English OCR, code blocks, an outline, image hosting adapters and chapter exports. Text conversion runs locally. Images are uploaded only when you choose hosting or explicitly start an upload. Download the portable build from Releases; source setup is below.
 
-当前版本 **0.2.2**：修复大型文档折叠大纲后再次点击标题时的界面停顿，保留标题层级、折叠和键盘导航。转换在独立进程执行，原页预览异步加载，预览图片缓存有容量限制。83 项自动化测试、打包自检及本机实际点击验收通过，详见 [测试报告](测试报告.md)。
+当前版本 **0.3.0**，保留 0.2.2 的原依赖版本，增加可选格式扩展：HTML / Excel / PPT / LaTeX / 图片 / Markdown / JSON 导入，以及 Markdown、Word、Excel、PPT、HTML、PDF、LaTeX 和 JSON 导出。文档在本机处理；Markdown 仍作为可编辑工作文件保存。
+
+## 格式转换
+
+选择输入文件和“导出格式”后开始批量转换。每个输入始终保存 UTF-8 Markdown 工作文件；选中的 Word、Excel、PPT、HTML、PDF、LaTeX 或 JSON 格式另存为同名文件。选择 Markdown 时不创建第二个文件。
+
+“保存修改”仍只保存 Markdown 和分章；编辑后点击“导出当前内容”重新生成所选格式。转换及重新导出均在独立子进程执行，每份文件结束后退出进程，格式库不会常驻界面进程。停止请求先协作取消；3 秒后仍未响应时结束转换进程及其 Pandoc 子进程。
+
+扩展输入限制为 64 MB，XLSX / PPTX 解压总量限制为 256 MB；工作簿合计最多 50 万单元格、每表 10 万行 / 2048 列、文本 1600 万字符；OCR 图片每帧最多 2400 万像素、最多 200 帧。超限会提示拆分，不在界面中完整加载。XLSX 使用只读流式解析并关闭文件句柄；仅保留有限的转换结果数据。
+
+### Word 表格往返转换
+
+检测到横向合并、纵向合并或嵌套表格时，使用 HTML 表格保留结构，避免合并标题重复填入多列。普通无合并表格仍使用 Markdown 表格。
+
+复杂 Word 表格会在同名 `.assets` 文件夹中保存原 DOCX 排版参考与文字位置，用于恢复页边距、列宽、行高、字体、页眉等信息。**Markdown 与 `.assets` 必须一起保留或移动**；其中包含原 Word 完整内容，请按原文档同样的隐私要求处理。未编辑时导出的 Word 与原文件字节一致；在保留表格和文字标记的情况下修改单元格文字、填写空单元格时，会沿用原排版。改变表格合并、删除文字标记或改动未映射的正文结构，会明确提示无法安全恢复，避免悄悄生成错乱的文件。
+
+单独的 Markdown 不具备 Word 页边距、行高等全部排版信息。未携带排版参考的 HTML 合并表格仍可常规导出合并结构，但不会还原原 Word 的全部外观。0.3.0 之前已经丢失合并信息的文件需要从原 Word 重新转换。
+
+| 输入 | 提取行为 |
+|---|---|
+| PDF / DOCX | 保留现有正文、标题、表格、图片和 OCR 转换 |
+| HTML | 转换语义正文和本地位图；移除脚本、样式和远程资源，不执行 HTML |
+| XLSX / XLS / CSV / TSV | 按工作表输出表格；`.xls` 只读支持；公式以文本保留，不计算 |
+| PPTX | 按幻灯片提取标题、文本、表格、图片和备注；不保留动画及原始版式；旧 `.ppt` 请另存为 `.pptx` |
+| LaTeX | 转换标题、列表、表格和数学公式；不执行宏包，不读取外部 `\\input` 文件 |
+| PNG / JPEG / WebP / BMP / TIFF | 本地中英文 OCR，并将原图保存在 `.assets` 中供核对 |
+| Markdown | 规范化标题、代码、表格和本地图片；远程图片不会下载 |
+| JSON | 接受 MarkFlow 工作簿 / 文档结构 JSON，或 `{"markdown":"..."}` |
+
+导出使用随应用打包的 Pandoc、python-docx、openpyxl、python-pptx 和 Qt PDF 打印引擎。HTML 仅导出脱离脚本的静态文件。PDF 为排版导出，不会反向重建源 PDF 的原始分页、字体和矢量布局；LaTeX 转换也不保证从普通 PDF 或 OCR 中恢复数学公式。Excel 导出从 Markdown 中识别表格；需要完整保留工作表名称、合并区域和公式文本时，可将 MarkFlow workbook JSON 导回 XLSX。旧版 `.doc` / `.ppt` 不属于 Office Open XML 格式。
 
 ## 使用免安装版
 
-1. 将 `MarkFlow-v0.2.2-windows-x64.zip` **完整解压**到一个可写目录。
+1. 将 `MarkFlow-v0.3.0-windows-x64.zip` **完整解压**到一个可写目录。
 2. 双击 `MarkFlow.exe`。程序需要同目录的 `_internal`，不要只移动 EXE。
-3. 点击“添加 PDF / Word”，或把文件拖入窗口。
+3. 点击“添加文件”，或把支持的文件拖入队列、编辑区、原文预览、大纲或窗口空白处。
 4. 选择输出目录、Markdown 格式，点击“开始转换”。
 5. 对照原文检查结果。在右侧编辑 Markdown，点击“保存修改”或按 Ctrl+S。
 6. 需要一个总文件时，点击“合并已转换文档”。合并顺序为队列中的添加顺序。
@@ -49,7 +78,7 @@ English: MarkFlow is a Windows desktop PDF/DOCX-to-Markdown converter with local
 - **可折叠大纲**：位于 Markdown 结果旁，点击箭头折叠，点击标题定位；“大纲 / 检查”按钮可隐藏导航以增大编辑空间。
 - **手动代码语言**：选择代码块，或把光标放入代码块，选择语言后点击“应用语言”，再保存；正文不变，支持撤销。
 - **质量提示**：在“检查”页查看未闭合代码围栏、疑似语言标签、标题跳级、丢失的本地图片与转换警告。OCR 警告带有页码时可跳转 PDF 原页。提示覆盖可检测的问题，不保证发现全部 OCR 错字。
-- **拖拽导入**：可以把 PDF / DOCX 拖到队列、编辑区、预览区或输出路径输入框，不会把文件路径插入正文。请正常启动程序；Windows 会限制不同权限级别程序之间的拖拽。
+- **拖拽导入**：可以把所有受支持文件拖到队列、编辑区、原文预览、大纲、按钮或窗口空白处，不会把文件路径插入正文。转换中不接收新文件。请正常启动程序；Windows 会限制不同权限级别程序之间的拖拽。
 
 长文档中的代码高亮、图片解码和排版都可能影响阅读器流畅度。分章可降低单次打开的文档规模；图床改变图片地址，仍需解码图片，不能保证消除 Typora 卡顿。尚未测量 Typora 滚动帧率。
 
@@ -88,7 +117,7 @@ PDF 中跨页连续的代码面板会衔接为一个代码块。代码标签按�
 - 简单表格主要面向 DOCX 表格与文字 PDF 的清晰网格表格。扫描页 OCR 输出文字，不保证恢复表格结构。
 - OCR 的准确度受清晰度、旋转和字体影响。金额、编号和专有名词请对照原文校对。
 - PDF 图片导出针对内嵌位图；矢量图和独立绘图元素不作为图片导出。DOCX 的 EMF / WMF 会保留原文件，阅读器支持情况不同。
-- 密码保护 PDF 会提示失败。公式、复杂合并单元格、脚注、修订和文本框不属于第一版专项处理范围。
+- 密码保护 PDF 会提示失败。Word 合并表格支持见上方“Word 表格往返转换”；公式、脚注、修订和文本框尚无专项转换支持。
 - 软件未做 Windows 代码签名；正式发布前可另行配置签名证书。
 
 ## 源码开发
@@ -96,25 +125,35 @@ PDF 中跨页连续的代码面板会衔接为一个代码块。代码标签按�
 需要 Windows x64、Python 3.12。可先用 VS Code 打开 `MarkFlow.code-workspace`，再在此目录的终端中运行：
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe main.py
+py -3.12 -m venv .venv312
+.\.venv312\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv312\Scripts\python.exe main.py
 ```
 
 `requirements-lock.txt` 记录本次验证所用的完整开发依赖版本，可用于重建相同环境。
+
+本分支保持 `requirements.txt`、`requirements-dev.txt` 和 `requirements-lock.txt` 的 0.2.2 版本。先用 Python 3.12 的独立虚拟环境安装原锁定依赖，再按需安装扩展；约束文件会阻止扩展升级原有组件：
+
+```powershell
+.\.venv312\Scripts\python.exe -m pip install -r requirements-lock.txt
+.\.venv312\Scripts\python.exe -m pip --proxy http://127.0.0.1:7900 install -r requirements-formats.txt
+.\.venv312\Scripts\python.exe -m pip check
+```
+
+扩展包为 Pandoc（`pypandoc_binary` 自带可执行文件）、openpyxl、python-pptx、xlrd、BeautifulSoup 及其固定版本的附属依赖。未安装扩展时仍可使用原有 PDF / DOCX 转 Markdown。需要下载国际网络资源时可添加 `--proxy http://127.0.0.1:7900`。打包环境安装扩展后，PyInstaller 会携带 Pandoc；没有扩展的环境仍可构建原功能。
 
 测试：
 
 ```powershell
 $env:QT_QPA_PLATFORM = "offscreen"
-.\.venv\Scripts\python.exe -m pytest -q
+.\.venv312\Scripts\python.exe -m pytest -q
 ```
 
 生成测试样本与打包：
 
 ```powershell
-.\.venv\Scripts\python.exe tests\samples.py 示例文件
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm MarkFlow.spec
+.\.venv312\Scripts\python.exe tests\samples.py 示例文件
+.\.venv312\Scripts\python.exe -m PyInstaller --noconfirm MarkFlow.spec
 ```
 
 开发自检入口（会将转换结果、界面截图和 JSON 报告写入指定目录，并禁止 Python socket 联网）：

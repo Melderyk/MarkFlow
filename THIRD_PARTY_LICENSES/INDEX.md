@@ -2,8 +2,12 @@
 
 These copies preserve license notices from the installed distributions.
 
+Format extensions are optional and are installed separately from the 0.2.2
+runtime lock. Their fixed versions and upstream licenses are listed below.
+
 | Component | Version | Declared license |
 |---|---|---|
+| beautifulsoup4 | 4.15.0 | MIT |
 | altgraph | 0.17.5 | MIT |
 | cffi | 2.1.1 | MIT-0 |
 | charset-normalizer | 3.5.2 | MIT |
@@ -11,9 +15,11 @@ These copies preserve license notices from the installed distributions.
 | cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause |
 | flatbuffers | 25.12.19 | Apache 2.0 |
 | iniconfig | 2.3.1 | MIT |
+| et_xmlfile | 2.0.0 | MIT |
 | lxml | 6.1.3 | BSD-3-Clause |
 | numpy | 2.5.4 | BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0 |
 | onnxruntime | 1.31.1 | MIT License |
+| openpyxl | 3.1.5 | MIT |
 | opencv-python | 5.0.0.93 | Apache 2.0 |
 | packaging | 26.3 | Apache-2.0 OR BSD-2-Clause |
 | pdfminer.six | 20260107 | MIT |
@@ -29,9 +35,11 @@ These copies preserve license notices from the installed distributions.
 | pyinstaller-hooks-contrib | 2026.9 | See included notices / project source |
 | pypdf | 7.0.0 | BSD-3-Clause |
 | pypdfium2 | 5.15.1 | BSD-3-Clause, Apache-2.0, dependency licenses |
+| pypandoc_binary | 1.17 | MIT wrapper; bundled Pandoc notices in `pandoc/COPYRIGHT.txt` |
 | PySide6_Essentials | 6.12.0 | LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only |
 | pytest | 9.2.0 | MIT |
 | python-docx | 1.2.0 | MIT |
+| python-pptx | 1.0.2 | MIT |
 | pywin32-ctypes | 0.2.3 | BSD-3-Clause |
 | PyYAML | 6.0.3 | MIT |
 | rapidocr-onnxruntime | 1.4.4 | Apache-2.0 |
@@ -42,3 +50,5 @@ These copies preserve license notices from the installed distributions.
 | six | 1.17.0 | MIT |
 | tqdm | 4.70.1 | MPL-2.0 AND MIT |
 | typing_extensions | 4.16.0 | PSF-2.0 |
+| xlrd | 2.0.2 | BSD-3-Clause |
+| soupsieve | 4.0.1 | MIT |

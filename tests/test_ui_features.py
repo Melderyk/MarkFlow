@@ -4,7 +4,7 @@ import time
 
 import pytest
 from PySide6.QtCore import QMimeData,QPoint,QPointF,Qt,QUrl
-from PySide6.QtGui import QDragEnterEvent,QDropEvent
+from PySide6.QtGui import QDragEnterEvent,QDragMoveEvent,QDropEvent
 from PySide6.QtWidgets import QApplication
 
 from markflow import app as app_module
@@ -14,7 +14,7 @@ from tests.test_ui import qt_app,wait_for
 from tests.test_export_features import server,config
 
 
-@pytest.mark.parametrize('surface',['queue','editor','rendered','output'])
+@pytest.mark.parametrize('surface',['queue','editor','rendered','output','window','original','word','outline','button'])
 def test_explorer_file_drop_on_child_widgets(qt_app,tmp_path,monkeypatch,surface):
     monkeypatch.setattr(app_module,'ROOT',tmp_path)
     source=create_samples(tmp_path/'samples')[0]
@@ -22,18 +22,43 @@ def test_explorer_file_drop_on_child_widgets(qt_app,tmp_path,monkeypatch,surface
     window.show()
     qt_app.processEvents()
     target={'queue':window.queue.viewport(),'editor':window.editor.viewport(),
-            'rendered':window.rendered.viewport(),'output':window.output_edit}[surface]
+            'rendered':window.rendered.viewport(),'output':window.output_edit,
+            'window':window,'original':window.original.scroll.viewport(),
+            'word':window.original.word.viewport(),'outline':window.outline.viewport(),
+            'button':window.add_btn}[surface]
     mime=QMimeData()
     mime.setUrls([QUrl.fromLocalFile(str(source))])
     enter=QDragEnterEvent(QPoint(20,20),Qt.DropAction.CopyAction,mime,Qt.MouseButton.LeftButton,Qt.KeyboardModifier.NoModifier)
     QApplication.sendEvent(target,enter)
     assert enter.isAccepted()
+    move=QDragMoveEvent(QPoint(20,20),Qt.DropAction.CopyAction,mime,Qt.MouseButton.LeftButton,Qt.KeyboardModifier.NoModifier)
+    QApplication.sendEvent(target,move)
+    assert move.isAccepted()
     drop=QDropEvent(QPointF(20,20),Qt.DropAction.CopyAction,mime,Qt.MouseButton.LeftButton,Qt.KeyboardModifier.NoModifier)
     QApplication.sendEvent(target,drop)
     assert drop.isAccepted() and len(window.entries)==1
     assert window.entries[0].source==source
     assert str(source) not in window.editor.toPlainText()
     wait_for(qt_app,lambda:not window.original.is_loading())
+    window.close()
+
+
+def test_drag_rejects_running_remote_and_unsupported_files(qt_app,tmp_path,monkeypatch):
+    monkeypatch.setattr(app_module,'ROOT',tmp_path)
+    source=tmp_path/'中文 带%符号.html'
+    source.write_text('<h1>Drop test</h1>',encoding='utf-8')
+    window=app_module.MainWindow()
+    for url,running,expected in [(QUrl.fromLocalFile(str(source)),False,True),
+            (QUrl.fromLocalFile(str(source)),True,False),
+            (QUrl('https://example.com/document.docx'),False,False),
+            (QUrl.fromLocalFile(str(tmp_path)),False,False)]:
+        window.running=running
+        mime=QMimeData()
+        mime.setUrls([url])
+        event=QDragEnterEvent(QPoint(10,10),Qt.DropAction.CopyAction,mime,Qt.MouseButton.LeftButton,Qt.KeyboardModifier.NoModifier)
+        window.dragEnterEvent(event)
+        assert event.isAccepted()==expected
+    window.running=False
     window.close()
 
 

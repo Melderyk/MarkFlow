@@ -7,6 +7,7 @@ import sys
 import threading
 import multiprocessing
 import queue
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,11 +26,64 @@ from .image_host import HostConfig, ImageUploader, upload_images, protect_token,
 from .markdown_tools import document_index, change_language, preview_sections, export_chapters, rewrite_images
 from .ui_helpers import HostDialog, PreviewBrowser
 from .outline import OutlineTree, OutlineItem
+from .formats import FILE_FILTER, INPUT_SUFFIXES, OUTPUT_FORMATS
 
 
 ROOT = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[1]
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", ROOT))
 PROFILES = ["GitHub / 通用", "Obsidian", "Typora"]
+
+
+def _windows_kill_job():
+    """Create a Windows job that terminates native children when closed."""
+    if os.name != 'nt':
+        return None
+    import ctypes
+    from ctypes import wintypes
+
+    class IoCounters(ctypes.Structure):
+        _fields_ = [(name, ctypes.c_ulonglong) for name in
+                    ('ReadOperationCount', 'WriteOperationCount', 'OtherOperationCount',
+                     'ReadTransferCount', 'WriteTransferCount', 'OtherTransferCount')]
+
+    class BasicLimit(ctypes.Structure):
+        _fields_ = [('PerProcessUserTimeLimit', ctypes.c_longlong),
+                    ('PerJobUserTimeLimit', ctypes.c_longlong),
+                    ('LimitFlags', wintypes.DWORD),
+                    ('MinimumWorkingSetSize', ctypes.c_size_t),
+                    ('MaximumWorkingSetSize', ctypes.c_size_t),
+                    ('ActiveProcessLimit', wintypes.DWORD),
+                    ('Affinity', ctypes.c_size_t),
+                    ('PriorityClass', wintypes.DWORD),
+                    ('SchedulingClass', wintypes.DWORD)]
+
+    class ExtendedLimit(ctypes.Structure):
+        _fields_ = [('BasicLimitInformation', BasicLimit),
+                    ('IoInfo', IoCounters),
+                    ('ProcessMemoryLimit', ctypes.c_size_t),
+                    ('JobMemoryLimit', ctypes.c_size_t),
+                    ('PeakProcessMemoryUsed', ctypes.c_size_t),
+                    ('PeakJobMemoryUsed', ctypes.c_size_t)]
+
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
+    kernel.CreateJobObjectW.restype = wintypes.HANDLE
+    kernel.SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int,
+                                               ctypes.c_void_p, wintypes.DWORD]
+    kernel.SetInformationJobObject.restype = wintypes.BOOL
+    kernel.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+    kernel.AssignProcessToJobObject.restype = wintypes.BOOL
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    handle = kernel.CreateJobObjectW(None, None)
+    if not handle:
+        return None
+    limits = ExtendedLimit()
+    limits.BasicLimitInformation.LimitFlags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+    if not kernel.SetInformationJobObject(handle, 9, ctypes.byref(limits), ctypes.sizeof(limits)):
+        kernel.CloseHandle(handle)
+        return None
+    return kernel, handle
 
 
 @dataclass
@@ -48,14 +102,15 @@ class BatchWorker(QThread):
     failed = Signal(int, str)
     stopped = Signal(int)
 
-    def __init__(self, jobs, options, parent=None):
+    def __init__(self, jobs, options, parent=None, *, exporting=False):
         super().__init__(parent)
         self.jobs = jobs
         self.options = options
         self.cancel_event = threading.Event()
+        self.exporting = exporting
 
     def run(self):
-        from .conversion_worker import convert_document
+        from .conversion_worker import convert_document, export_document_file
         context = multiprocessing.get_context('spawn')
         for index, source in self.jobs:
             if self.cancel_event.is_set():
@@ -63,14 +118,27 @@ class BatchWorker(QThread):
             self.progress.emit(index, "转换中")
             messages = context.Queue()
             cancelled = context.Event()
-            process = context.Process(target=convert_document,
+            process = context.Process(target=export_document_file if self.exporting else convert_document,
                 args=(source, self.options, messages, cancelled), daemon=True)
+            kill_job = _windows_kill_job()
             terminal = False
+            cancel_started = None
             try:
                 process.start()
+                if kill_job is not None:
+                    kernel, handle = kill_job
+                    # On Windows, the public sentinel is a waitable process handle.
+                    if not kernel.AssignProcessToJobObject(handle, process.sentinel):
+                        kernel.CloseHandle(handle)
+                        kill_job = None
                 while not terminal:
                     if self.cancel_event.is_set():
                         cancelled.set()
+                        if cancel_started is None:
+                            cancel_started = time.monotonic()
+                        elif time.monotonic() - cancel_started >= 3:
+                            self.stopped.emit(index)
+                            break
                     try:
                         kind, value = messages.get(timeout=.05)
                     except queue.Empty:
@@ -92,17 +160,34 @@ class BatchWorker(QThread):
                     elif kind == 'error':
                         self.failed.emit(index, value)
                         terminal = True
-                process.join(timeout=5)
+                if terminal:
+                    process.join(timeout=5)
             except Exception as exc:
                 self.failed.emit(index, str(exc))
             finally:
                 if process.pid is not None:
                     if process.is_alive():
-                        process.terminate()
+                        if os.name == 'nt':
+                            # Terminate Pandoc too when a native parser cannot cancel.
+                            import subprocess
+                            try:
+                                subprocess.run([str(Path(os.environ.get('SystemRoot', 'C:/Windows')) / 'System32' / 'taskkill.exe'),
+                                                '/PID', str(process.pid), '/T', '/F'],
+                                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                               creationflags=subprocess.CREATE_NO_WINDOW, timeout=5)
+                            except (OSError, subprocess.TimeoutExpired):
+                                pass
+                        if process.is_alive():
+                            process.terminate()
                     process.join(timeout=5)
+                    if process.is_alive():
+                        process.kill()
+                        process.join(timeout=5)
                     process.close()
                 messages.close()
                 messages.join_thread()
+                if kill_job is not None:
+                    kill_job[0].CloseHandle(kill_job[1])
 
 
 class PublishWorker(QThread):
@@ -179,7 +264,7 @@ class OriginalPreview(QWidget):
         controls.addWidget(self.next)
         layout.addWidget(self.controls)
         self.stack = QStackedWidget()
-        self.placeholder = QLabel("添加 PDF 或 Word 文件\n在这里查看原文内容")
+        self.placeholder = QLabel("添加文档后在这里查看原文内容")
         self.placeholder.setObjectName("placeholder")
         self.placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.scroll = QScrollArea()
@@ -214,7 +299,11 @@ class OriginalPreview(QWidget):
             self.stack.setCurrentWidget(self.placeholder)
             self.description.setText("原文预览")
             return
-        self.description.setText('PDF 原文 · 页面预览' if source.suffix.lower()=='.pdf' else 'Word 原文 · 内容预览（不含分页）')
+        self.description.setText('PDF 原文 · 页面预览' if source.suffix.lower()=='.pdf' else ('Word 原文 · 内容预览（不含分页）' if source.suffix.lower()=='.docx' else f'{source.suffix[1:].upper()} 原文 · 内容预览'))
+        if source.suffix.lower() not in {'.pdf', '.docx'}:
+            self.placeholder.setText('此格式请使用右侧转换结果预览，或点击“打开原文件”。')
+            self.stack.setCurrentWidget(self.placeholder)
+            return
         self.page.blockSignals(True)
         self.page.setRange(1, 1)
         self.page.setValue(1)
@@ -331,7 +420,7 @@ class MainWindow(QMainWindow):
         self.analysis_timer.setSingleShot(True)
         self.analysis_timer.setInterval(450)
         self.analysis_timer.timeout.connect(self.rebuild_navigation)
-        self.setWindowTitle("墨页 MarkFlow · PDF / Word 转 Markdown")
+        self.setWindowTitle(f"墨页 MarkFlow {__version__} · 文档格式转换")
         self.resize(1440, 920)
         self.setMinimumSize(1120, 720)
         self.setAcceptDrops(True)
@@ -340,9 +429,9 @@ class MainWindow(QMainWindow):
             self.setWindowIcon(QIcon(str(icon_path)))
         self._build()
         self._load_config()
-        # Child viewports and line edits otherwise consume Explorer URL drops.
-        self.drop_targets = (self.queue.viewport(), self.editor.viewport(),
-                             self.rendered.viewport(), self.output_edit)
+        # Qt child controls can accept DragEnter then discard DragMove. Handle
+        # the complete URL-drop sequence across the whole document workspace.
+        self.drop_targets = tuple(self.findChildren(QWidget))
         for widget in self.drop_targets:
             widget.setAcceptDrops(True)
             widget.installEventFilter(self)
@@ -366,12 +455,12 @@ class MainWindow(QMainWindow):
         tagline.setObjectName("sideCaption")
         side.addWidget(tagline)
         side.addSpacing(12)
-        self.add_btn = QPushButton("＋  添加 PDF / Word")
+        self.add_btn = QPushButton("＋  添加文件")
         self.add_btn.setObjectName("addButton")
         self.add_btn.setMinimumHeight(46)
         self.add_btn.clicked.connect(self.pick_files)
         side.addWidget(self.add_btn)
-        hint = QLabel("也可以将文件拖到窗口中\n支持 .pdf / .docx，扫描件自动 OCR")
+        hint = QLabel("支持 PDF、Word、Excel、PPT、HTML、LaTeX、Markdown 和图片")
         hint.setObjectName("sideCaption")
         hint.setWordWrap(True)
         side.addWidget(hint)
@@ -413,6 +502,12 @@ class MainWindow(QMainWindow):
         self.profile.addItems(PROFILES)
         self.profile.setToolTip("三种模式均使用相对图片链接；合并目录按阅读器适配")
         side.addWidget(self.profile)
+        side.addWidget(self._side_label("导出格式"))
+        self.output_format = QComboBox()
+        self.output_format.setObjectName('profile')
+        self.output_format.addItems(OUTPUT_FORMATS)
+        self.output_format.setToolTip('保留 Markdown 工作文件；所选格式作为附加文件导出')
+        side.addWidget(self.output_format)
         image_row=QHBoxLayout()
         self.image_mode=QComboBox()
         self.image_mode.setObjectName('profile')
@@ -472,12 +567,16 @@ class MainWindow(QMainWindow):
         self.source_btn.clicked.connect(self.open_source)
         self.save_btn = QPushButton("保存修改  Ctrl+S")
         self.save_btn.clicked.connect(self.save_current)
+        self.export_btn = QPushButton('导出当前内容')
+        self.export_btn.setToolTip('按所选格式导出当前编辑内容；转换在独立进程执行')
+        self.export_btn.clicked.connect(self.export_current)
         self.publish_btn=QPushButton('上传 / 重试图片')
         self.publish_btn.setToolTip('使用当前图床配置上传当前文档的本地图片，并保存链接与当前编辑内容')
         self.publish_btn.clicked.connect(self.publish_current)
         toolbar.addWidget(self.source_btn)
         toolbar.addWidget(self.publish_btn)
         toolbar.addWidget(self.save_btn)
+        toolbar.addWidget(self.export_btn)
         card_layout.addLayout(toolbar)
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.original = OriginalPreview()
@@ -605,6 +704,7 @@ class MainWindow(QMainWindow):
             data = json.loads((ROOT / "markflow-settings.json").read_text(encoding="utf-8"))
             self.output_edit.setText(data.get("output", str(ROOT / "导出")))
             self.profile.setCurrentText(data.get("profile", PROFILES[0]))
+            self.output_format.setCurrentText(next((label for label, ext in OUTPUT_FORMATS.items() if ext == data.get('output_format')), 'Markdown (.md)'))
             self.ocr.setChecked(data.get("ocr", True))
             self.image_mode.setCurrentIndex(1 if data.get('image_mode')=='host' else 0)
             self.chapters.setChecked(data.get('chapters',True))
@@ -629,6 +729,7 @@ class MainWindow(QMainWindow):
                 "output": self.output_edit.text(), "profile": self.profile.currentText(), "ocr": self.ocr.isChecked(),
                 'image_mode':'host' if self.image_mode.currentIndex() else 'local',
                 'chapters':self.chapters.isChecked(),'host':self.host_config.public(),
+                'output_format':OUTPUT_FORMATS[self.output_format.currentText()],
                 'encrypted_token':encrypted
             }, ensure_ascii=False, indent=2))
             if not credential_saved:
@@ -647,7 +748,7 @@ class MainWindow(QMainWindow):
                 self.status.setText('图床配置已更新；选择图床模式后，转换时会上传图片。')
 
     def pick_files(self):
-        paths, _ = QFileDialog.getOpenFileNames(self, "添加文档", "", "PDF / Word (*.pdf *.docx);;所有文件 (*)")
+        paths, _ = QFileDialog.getOpenFileNames(self, "添加文档", "", FILE_FILTER)
         self.add_files([Path(path) for path in paths])
 
     def add_files(self, paths):
@@ -657,7 +758,7 @@ class MainWindow(QMainWindow):
         rejected = []
         for path in paths:
             path = Path(path).resolve()
-            if not path.is_file() or path.suffix.lower() not in {".pdf", ".docx"}:
+            if not path.is_file() or path.suffix.lower() not in INPUT_SUFFIXES:
                 rejected.append(path.name)
                 continue
             if str(path).casefold() in existing:
@@ -712,6 +813,8 @@ class MainWindow(QMainWindow):
         elif entry.result:
             result = entry.result
             summary = f"已保存：{result.output.name}"
+            if result.export:
+                summary += f" · 已导出 {result.export.name}"
             if result.pages:
                 summary += f" · {result.pages} 页 / OCR {result.ocr_pages} 页"
             if result.warnings:
@@ -860,7 +963,7 @@ class MainWindow(QMainWindow):
     def refresh_enabled(self):
         selected = 0 <= self.current_index < len(self.entries)
         entry = self.entries[self.current_index] if selected else None
-        for widget in (self.add_btn, self.remove_btn, self.clear_btn, self.output_edit, self.browse_btn, self.profile, self.ocr,self.image_mode,self.host_btn,self.chapters):
+        for widget in (self.add_btn, self.remove_btn, self.clear_btn, self.output_edit, self.browse_btn, self.profile, self.output_format, self.ocr,self.image_mode,self.host_btn,self.chapters):
             widget.setEnabled(not self.running)
         self.source_btn.setEnabled(selected)
         self.editor.setReadOnly(not bool(entry and entry.result) or self.running)
@@ -870,6 +973,7 @@ class MainWindow(QMainWindow):
         self.apply_language_btn.setEnabled(bool(entry and entry.result and self.index.codes) and not self.running)
         self.chapter_btn.setEnabled(bool(entry and entry.result and entry.result.chapters_dir) and not self.running)
         self.publish_btn.setEnabled(bool(entry and entry.result) and not self.running)
+        self.export_btn.setEnabled(bool(entry and entry.result) and not self.running)
 
     def publish_current(self):
         if self.running or not 0<=self.current_index<len(self.entries): return
@@ -912,6 +1016,8 @@ class MainWindow(QMainWindow):
 
     def on_publish_finished(self):
         self.worker.wait()
+        self.worker.deleteLater()
+        self.worker = None
         self.running=False
         self.start_btn.setText('转换完成' if all(e.result for e in self.entries) else '继续 / 重试')
         self.refresh_enabled()
@@ -952,7 +1058,8 @@ class MainWindow(QMainWindow):
             self.entries[index].status = "等待转换"
             self.update_item(index)
         self.worker = BatchWorker(jobs, Options(Path(output), self.profile.currentText(), self.ocr.isChecked(),
-            'host' if self.image_mode.currentIndex() else 'local',self.host_config,self.chapters.isChecked()), self)
+            'host' if self.image_mode.currentIndex() else 'local',self.host_config,self.chapters.isChecked(),
+            OUTPUT_FORMATS[self.output_format.currentText()]), self)
         self.worker.progress.connect(self.on_progress)
         self.worker.converted.connect(self.on_converted)
         self.worker.failed.connect(self.on_failed)
@@ -995,6 +1102,8 @@ class MainWindow(QMainWindow):
     def on_finished(self):
         self.worker.wait()
         cancelled = self.worker.cancel_event.is_set()
+        self.worker.deleteLater()
+        self.worker = None
         self.running = False
         self.start_btn.setText("继续 / 重试" if any(not e.result for e in self.entries) else "转换完成")
         successes = sum(e.result is not None for e in self.entries)
@@ -1016,8 +1125,42 @@ class MainWindow(QMainWindow):
             self.update_item(self.current_index)
             self.status.setText(f"已保存修改 · {entry.result.output.name}")
             self.refresh_enabled()
-        except OSError as exc:
+        except Exception as exc:
             QMessageBox.warning(self, "保存失败", str(exc))
+
+    def export_current(self):
+        if self.running or not 0 <= self.current_index < len(self.entries):
+            return
+        entry = self.entries[self.current_index]
+        if not entry.result:
+            return
+        self.save_current()
+        if entry.dirty:
+            return
+        suffix = OUTPUT_FORMATS[self.output_format.currentText()]
+        if suffix == 'md':
+            return
+        destination = entry.result.output.with_suffix('.' + suffix)
+        path, _ = QFileDialog.getSaveFileName(self, '导出当前内容', str(destination), f'*.{suffix}')
+        if not path:
+            return
+        destination = Path(path).with_suffix('.' + suffix)
+        self.running = True
+        self.start_btn.setText('停止导出')
+        self.status.setText('正在导出当前内容…')
+        self.worker = BatchWorker([(self.current_index, (entry.result.output, destination, entry.result.remote_images))],
+                                  None, self, exporting=True)
+        self.worker.converted.connect(self.on_exported)
+        self.worker.failed.connect(lambda i, error: self.status.setText('导出失败：' + error))
+        self.worker.stopped.connect(lambda i: self.status.setText('已停止导出'))
+        self.worker.finished.connect(self.on_publish_finished)
+        self.refresh_enabled()
+        self.worker.start()
+
+    def on_exported(self, index, destination):
+        self.entries[index].result.export = destination
+        self.show_notice(self.entries[index])
+        self.status.setText('已导出：' + destination.name)
 
     def save_all_dirty(self):
         for entry in self.entries:
@@ -1111,23 +1254,30 @@ class MainWindow(QMainWindow):
 
     def eventFilter(self,obj,event):
         if event.type() in (QEvent.Type.DragEnter,QEvent.Type.DragMove,QEvent.Type.Drop):
-            mime=event.mimeData()
-            if mime.hasUrls():
-                paths=[Path(url.toLocalFile()) for url in mime.urls() if url.isLocalFile()]
-                if not self.running and any(p.suffix.lower() in {'.pdf','.docx'} and p.is_file() for p in paths):
-                    if event.type()==QEvent.Type.Drop: self.add_files(paths)
-                    event.acceptProposedAction()
-                else: event.ignore()
+            if event.mimeData().hasUrls():
+                self._file_drag(event)
                 return True
         return False
 
+    def _file_drag(self, event):
+        paths = [Path(url.toLocalFile()) for url in event.mimeData().urls() if url.isLocalFile()]
+        supported = [p for p in paths if p.suffix.lower() in INPUT_SUFFIXES and p.is_file()]
+        if self.running or not supported or not event.possibleActions() & Qt.DropAction.CopyAction:
+            event.ignore()
+            return
+        if event.type() == QEvent.Type.Drop:
+            self.add_files(supported)
+        event.setDropAction(Qt.DropAction.CopyAction)
+        event.accept()
+
     def dragEnterEvent(self, event):
-        if not self.running and event.mimeData().hasUrls():
-            event.acceptProposedAction()
+        self._file_drag(event)
+
+    def dragMoveEvent(self, event):
+        self._file_drag(event)
 
     def dropEvent(self, event):
-        self.add_files([Path(url.toLocalFile()) for url in event.mimeData().urls() if url.isLocalFile()])
-        event.acceptProposedAction()
+        self._file_drag(event)
 
     def closeEvent(self, event):
         if self.running:

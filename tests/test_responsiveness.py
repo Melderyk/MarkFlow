@@ -146,3 +146,104 @@ def test_stop_reaches_spawned_converter_and_skips_remaining_jobs(qt_app,tmp_path
     assert stopped==[0] and set(started)=={0}
     assert not converted and not errors
     assert not list(output.iterdir())
+
+
+def test_format_export_runs_outside_ui_process(qt_app, tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, 'ROOT', tmp_path)
+    source = create_samples(tmp_path / 'samples')[1]
+    output = tmp_path / 'sample.md'
+    output.write_text('# Export check\n\n' + ('正文保持界面响应。\n\n' * 500), encoding='utf-8')
+    window = app_module.MainWindow()
+    window.add_files([source])
+    window.on_converted(0, Result(source, output, output.read_text(encoding='utf-8')))
+    window.output_format.setCurrentText('HTML (.html)')
+    monkeypatch.setattr(app_module.QFileDialog, 'getSaveFileName',
+        lambda *args: (str(tmp_path / 'export.html'), 'HTML'))
+    ticks = []
+    timer = QTimer()
+    timer.setInterval(10)
+    timer.timeout.connect(lambda: ticks.append(time.monotonic()))
+    timer.start()
+    window.export_current()
+    wait_for(qt_app, lambda: not window.running)
+    timer.stop()
+    assert (tmp_path / 'export.html').is_file()
+    assert len(ticks) >= 3
+    window.close()
+
+
+def stalled_conversion_with_native_child(source, options, messages, cancel):
+    """Simulate a native parser that ignores cooperative cancellation."""
+    import os
+    import subprocess
+    import sys
+    child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'],
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+    time.sleep(.2)  # Let Windows publish the parent-child relation before cancellation.
+    messages.put(('progress', f'native-child:{child.pid}'))
+    time.sleep(60)
+
+
+def test_forced_cancel_reaps_native_process_tree(qt_app, tmp_path, monkeypatch):
+    import ctypes
+    import os
+    import pytest
+    from markflow import conversion_worker
+    if os.name != 'nt':
+        pytest.skip('Windows process tree cleanup')
+    monkeypatch.setattr(conversion_worker, 'convert_document', stalled_conversion_with_native_child)
+    worker = app_module.BatchWorker([(0, tmp_path / 'ignored.pdf')], Options(tmp_path))
+    native = []
+    stopped = []
+    errors = []
+    def started(index, text):
+        if text.startswith('native-child:'):
+            native.append(int(text.split(':')[1]))
+            worker.cancel_event.set()
+    worker.progress.connect(started)
+    worker.stopped.connect(stopped.append)
+    worker.failed.connect(lambda i, error: errors.append(error))
+    worker.start()
+    # Spawn/pickle failures must fail promptly rather than waiting the default
+    # minute for a progress message that the child can never send.
+    wait_for(qt_app, lambda: bool(native) or not worker.isRunning())
+    assert native, f'worker exited before native child started: {errors}'
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.OpenProcess.argtypes = [ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong]
+    kernel.OpenProcess.restype = ctypes.c_void_p
+    kernel.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+    kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+    handle = kernel.OpenProcess(0x00100000, False, native[0])  # SYNCHRONIZE
+    assert handle
+    try:
+        started_at = time.monotonic()
+        wait_for(qt_app, lambda: not worker.isRunning(), seconds=15)
+        worker.wait()
+        assert not errors and stopped == [0]
+        assert time.monotonic() - started_at < 10
+        assert kernel.WaitForSingleObject(handle, 0) == 0
+    finally:
+        kernel.CloseHandle(handle)
+
+
+def test_finished_batch_workers_are_released(qt_app, tmp_path, monkeypatch):
+    from PySide6.QtCore import QCoreApplication, QEvent
+    import multiprocessing
+    monkeypatch.setattr(app_module, 'ROOT', tmp_path)
+    source = tmp_path / 'source.csv'
+    source.write_text('A,B\n1,2\n', encoding='utf-8')
+    window = app_module.MainWindow()
+    window.output_edit.setText(str(tmp_path / 'out'))
+    try:
+        for _ in range(6):
+            window.add_files([source])
+            window.start_batch()
+            wait_for(qt_app, lambda: not window.running)
+            assert window.entries[0].result
+            QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+            assert window.worker is None
+            assert not window.findChildren(app_module.BatchWorker)
+            assert not multiprocessing.active_children()
+            window.clear_queue()
+    finally:
+        window.close()

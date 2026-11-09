@@ -1,0 +1,9 @@
+# Optional format extensions. Keep the v0.2.2 dependency versions constrained.
+-c requirements-lock.txt
+pypandoc_binary==1.17
+openpyxl==3.1.5
+python-pptx==1.0.2
+xlrd==2.0.2
+beautifulsoup4==4.15.0
+et_xmlfile==2.0.0
+soupsieve==4.0.1

@@ -43,6 +43,7 @@ class Options:
     image_mode: str = 'local'
     host: object | None = None
     split_chapters: bool = True
+    output_format: str = "md"
 
 
 @dataclass
@@ -56,6 +57,7 @@ class Result:
     warnings: list[str] = field(default_factory=list)
     remote_images: dict[str,str] = field(default_factory=dict)
     chapters_dir: Path | None = None
+    export: Path | None = None
 
 
 def safe_name(value: str) -> str:
@@ -67,11 +69,12 @@ def safe_name(value: str) -> str:
     return value
 
 
-def unique_stem(folder: Path, stem: str) -> str:
+def unique_stem(folder: Path, stem: str, output_format: str = 'md') -> str:
     base = safe_name(stem)
     candidate = base
     index = 2
-    while (folder / f"{candidate}.md").exists() or (folder / f"{candidate}.assets").exists():
+    while ((folder / f"{candidate}.md").exists() or (folder / f"{candidate}.assets").exists()
+           or (folder / f"{candidate}.{output_format}").exists()):
         candidate = f"{base}_{index}"
         index += 1
     return candidate
@@ -132,39 +135,65 @@ class Converter:
         source = Path(source).resolve()
         if not source.is_file():
             raise ConversionError("文件不存在或已被移动")
-        if source.suffix.lower() not in {".pdf", ".docx"}:
-            raise ConversionError("支持 PDF 和 DOCX；旧版 .doc 请先另存为 .docx")
+        from .formats import INPUT_SUFFIXES, OUTPUT_SUFFIXES
+        if source.suffix.lower() not in INPUT_SUFFIXES:
+            raise ConversionError("不支持此输入格式")
+        if options.output_format not in OUTPUT_SUFFIXES:
+            raise ConversionError("不支持的输出格式")
         options.output_dir = Path(options.output_dir).resolve()
         options.output_dir.mkdir(parents=True, exist_ok=True)
-        stem = unique_stem(options.output_dir, source.stem)
+        stem = unique_stem(options.output_dir, source.stem, options.output_format)
         staging = options.output_dir / f".markflow-{uuid.uuid4().hex}"
         staging.mkdir()
         assets = Assets(staging, stem, options.profile)
         warnings: list[str] = []
         try:
             self.check(cancel)
+            structured = None
             if source.suffix.lower() == ".docx":
                 text = self._docx(source, assets, warnings, cancel)
                 pages, ocr_pages = 0, 0
-            else:
+                if options.output_format == 'json':
+                    from .formats import word_data
+                    structured = word_data(source, cancel)
+            elif source.suffix.lower() == ".pdf":
                 text, pages, ocr_pages = self._pdf(source, assets, options, warnings, progress, cancel)
+            else:
+                from .formats import import_document
+                text, pages, ocr_pages, structured = import_document(
+                    self, source, assets, options, warnings, progress, cancel)
             self.check(cancel)
             if not text.strip():
                 warnings.append("未提取到正文，请在原文预览中检查内容。")
             text = text.strip() + "\n"
             (staging / f"{stem}.md").write_text(text, encoding="utf-8", newline="\n")
+            staged_export = None
+            if options.output_format != "md":
+                from .formats import export_document
+                staged_export = staging / f"{stem}.{options.output_format}"
+                export_document(text, staged_export, base=staging,
+                                structured=structured, cancel=cancel)
+            self.check(cancel)
             final_assets = None
             if assets.folder.exists():
                 final_assets = options.output_dir / assets.folder.name
                 assets.folder.rename(final_assets)
             destination = options.output_dir / f"{stem}.md"
+            committed_markdown = False
             try:
                 (staging / f"{stem}.md").rename(destination)
+                committed_markdown = True
+                if staged_export is not None:
+                    staged_export.rename(options.output_dir / staged_export.name)
             except Exception:
+                if committed_markdown:
+                    destination.unlink(missing_ok=True)
                 if final_assets:
                     shutil.rmtree(final_assets)
                 raise
             result=Result(source, destination, text, final_assets, pages, ocr_pages, warnings)
+            if staged_export is not None:
+                result.export = options.output_dir / staged_export.name
             if options.image_mode=='host' and final_assets:
                 from .image_host import ImageUploader, upload_images
                 try:
@@ -207,6 +236,7 @@ class Converter:
         doc = Document(source)
         blocks = []
         code = []
+        preserve_layout = False
         def flush_code():
             if code:
                 blocks.append(fenced_code("\n".join(code)))
@@ -231,6 +261,11 @@ class Converter:
                     blocks.append(text)
             elif isinstance(block, Table):
                 flush_code()
+                from .word_layout import complex_table, table_html
+                if complex_table(block):
+                    blocks.append(table_html(block, doc, assets, cancel))
+                    preserve_layout = True
+                    continue
                 rows = []
                 for row in block.rows:
                     cells = []
@@ -244,7 +279,13 @@ class Converter:
         flush_code()
         if not blocks:
             warnings.append("正文为空；文本框、批注和修订标记不属于第一版提取范围。")
-        return "\n\n".join(blocks)
+        text = "\n\n".join(blocks)
+        if preserve_layout:
+            from .word_layout import save_reference
+            text = save_reference(source, text, assets)
+            warnings.append('检测到复杂合并表格，已保留 HTML 合并结构及 Word 原排版参考；'
+                            '往返转换请同时保留 Markdown 和 .assets 文件夹。')
+        return text
 
     def _paragraph(self, p: Paragraph, doc, assets: Assets, warnings: list[str], table=False) -> str:
         def inline(node) -> str:

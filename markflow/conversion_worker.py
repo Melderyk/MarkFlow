@@ -21,3 +21,22 @@ def convert_document(source, options, messages, cancel):
         messages.put(('cancelled', None))
     except Exception as exc:
         messages.put(('error', str(exc)))
+
+
+def export_document_file(job, options, messages, cancel):
+    """Read saved Markdown and export it outside the GUI process."""
+    from .core import Cancelled
+    from .formats import export_document, read_text
+    from .markdown_tools import rewrite_images
+    source, destination, remote_images = job
+    try:
+        text = read_text(source)
+        if remote_images:
+            reverse = {url: local for local, url in remote_images.items()}
+            text = rewrite_images(text, lambda m: f'![{m[1]}]({reverse[m[2]]})' if m[2] in reverse else m[0])
+        export_document(text, destination, base=source.parent, cancel=cancel)
+        messages.put(('result', destination))
+    except Cancelled:
+        messages.put(('cancelled', None))
+    except Exception as exc:
+        messages.put(('error', str(exc)))
