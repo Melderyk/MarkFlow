@@ -1,0 +1,10 @@
+{
+  "version": "0.3.2",
+  "date": "2026-11-09",
+  "passed": 138,
+  "failed": 0,
+  "exit_code": 0,
+  "seconds": 132.71,
+  "legacy_qt_drag_deprecation_warnings": 22,
+  "original_dependency_and_host_files_unchanged": true
+}

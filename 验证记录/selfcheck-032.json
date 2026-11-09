@@ -1,0 +1,61 @@
+{
+  "version": "0.3.2",
+  "frozen": true,
+  "checks": [
+    {
+      "file": "01_Word示例.docx",
+      "pages": 0,
+      "ocr_pages": 0,
+      "passed": true
+    },
+    {
+      "file": "02_文字PDF示例.pdf",
+      "pages": 2,
+      "ocr_pages": 0,
+      "passed": true
+    },
+    {
+      "file": "03_扫描PDF示例.pdf",
+      "pages": 1,
+      "ocr_pages": 1,
+      "passed": true
+    }
+  ],
+  "embedded_markdown": {
+    "single_file": true,
+    "image_decoding": true,
+    "gui_conversion_and_preview": true
+  },
+  "typora_compatibility_notice": true,
+  "windows_secret_store": true,
+  "responsiveness": {
+    "pages": 187,
+    "headings": 550,
+    "code_blocks": 409,
+    "outline_mouse_clicks": 736,
+    "navigation_toggles": 146,
+    "resize_move_during_conversion": 2115,
+    "conversion_seconds": 42.59,
+    "max_outline_action_seconds": 0.875,
+    "max_ui_heartbeat_gap_seconds": 0.891,
+    "peak_ui_working_set_mb": 518.5,
+    "text_and_code_unchanged": true,
+    "passed": true
+  },
+  "ui_features": {
+    "child_viewport_drop": true,
+    "outline_navigation": true,
+    "manual_code_language_and_save": true,
+    "bounded_preview": true,
+    "event_loop_shutdown": true
+  },
+  "passed": true,
+  "system_exit_code": 0,
+  "exe_sha256": "5bcfc0e412121774e7f272cc2eaf2413a7962b8f50671c3959daa180e02ec60f",
+  "large_pdf_export": {
+    "markdown_bytes": 532041,
+    "image_links": 631,
+    "all_image_links_resolve": true,
+    "source_and_exe_markdown_identical": true
+  }
+}

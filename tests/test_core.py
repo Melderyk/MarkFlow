@@ -99,3 +99,35 @@ def test_cancellation_invalid_inputs_and_atomic_save(samples, tmp_path):
     atomic_write(target, "# changed\n")
     assert target.read_text(encoding="utf-8") == "# changed\n"
     assert not list(tmp_path.glob("*.tmp"))
+
+
+@pytest.mark.parametrize('fail_asset', [False, True])
+def test_pdf_page_images_close_on_success_and_failure(samples, tmp_path, monkeypatch, fail_asset):
+    from markflow import core
+    from PIL import Image
+    images = []
+    render = core.render_page
+    crop = Image.Image.crop
+    def tracked_render(*args, **kwargs):
+        image = render(*args, **kwargs)
+        images.append(image)
+        return image
+    def tracked_crop(self, *args, **kwargs):
+        image = crop(self, *args, **kwargs)
+        images.append(image)
+        return image
+    monkeypatch.setattr(core, 'render_page', tracked_render)
+    monkeypatch.setattr(Image.Image, 'crop', tracked_crop)
+    if fail_asset:
+        def fail(*args, **kwargs):
+            raise ConversionError('模拟图片保存失败')
+        monkeypatch.setattr(core.Assets, 'add', fail)
+        with pytest.raises(ConversionError, match='模拟图片保存失败'):
+            Converter().convert(samples[1], Options(tmp_path))
+        assert not list(tmp_path.iterdir())
+    else:
+        Converter().convert(samples[1], Options(tmp_path))
+    assert len(images) >= 2
+    for image in images:
+        with pytest.raises(ValueError, match='closed'):
+            image.getpixel((0, 0))

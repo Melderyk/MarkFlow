@@ -7,6 +7,7 @@ import re
 import shutil
 import threading
 import uuid
+from contextlib import closing
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -421,7 +422,7 @@ class Converter:
                 scanned = is_scanned(page, raw, layout.has_outline)
                 if scanned and options.ocr:
                     progress(f"第 {index + 1}/{pages} 页 · 本地 OCR 识别")
-                    with render_page(renderer, index, scale=2.2) as pil:
+                    with closing(render_page(renderer, index, scale=2.2)) as pil:
                         text = self.ocr_image(pil, cancel)
                         ocr_count += 1
                         if not text:
@@ -517,21 +518,25 @@ class Converter:
             events.append((line.top,line.x0,"block" if level else "line",text))
         flush_code()
         raster = None
-        for pic in page.images:
-            width, height = pic["x1"] - pic["x0"], pic["bottom"] - pic["top"]
-            if width < 24 or height < 24:
-                continue
-            if raster is None:
-                raster = render_page(renderer, index, scale=2)
-            sx, sy = raster.width / page.width, raster.height / page.height
-            box = (max(0, int(pic["x0"] * sx)), max(0, int(pic["top"] * sy)),
-                   min(raster.width, int(pic["x1"] * sx)), min(raster.height, int(pic["bottom"] * sy)))
-            if box[2] <= box[0] or box[3] <= box[1]:
-                continue
-            buffer = io.BytesIO()
-            raster.crop(box).save(buffer, format="PNG")
-            link = assets.add(buffer.getvalue(), "png", f"第 {index + 1} 页图片")
-            events.append((pic["top"], pic["x0"], "block", link))
+        try:
+            for pic in page.images:
+                width, height = pic["x1"] - pic["x0"], pic["bottom"] - pic["top"]
+                if width < 24 or height < 24:
+                    continue
+                if raster is None:
+                    raster = render_page(renderer, index, scale=2)
+                sx, sy = raster.width / page.width, raster.height / page.height
+                box = (max(0, int(pic["x0"] * sx)), max(0, int(pic["top"] * sy)),
+                       min(raster.width, int(pic["x1"] * sx)), min(raster.height, int(pic["bottom"] * sy)))
+                if box[2] <= box[0] or box[3] <= box[1]:
+                    continue
+                with closing(raster.crop(box)) as cropped, io.BytesIO() as buffer:
+                    cropped.save(buffer, format="PNG")
+                    link = assets.add(buffer.getvalue(), "png", f"第 {index + 1} 页图片")
+                events.append((pic["top"], pic["x0"], "block", link))
+        finally:
+            if raster is not None:
+                raster.close()
         parts = []
         paragraph = []
         previous_y = None

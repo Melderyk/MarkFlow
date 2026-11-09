@@ -29,6 +29,9 @@ OUTPUT_SUFFIXES = frozenset(OUTPUT_FORMATS.values())
 FILE_FILTER = '支持的文档 (' + ' '.join('*' + s for s in sorted(INPUT_SUFFIXES)) + ');;所有文件 (*)'
 MARKDOWN_READER = 'markdown+tex_math_dollars+pipe_tables+task_lists+fenced_code_attributes-markdown_in_html_blocks'
 MAX_INPUT_BYTES = 64 * 1024 * 1024
+# PDF content is processed page by page; large raster-heavy manuals need a
+# separate file-size allowance. Keep the tighter cap for other format readers.
+MAX_PDF_INPUT_BYTES = 256 * 1024 * 1024
 MAX_UNPACKED_BYTES = 256 * 1024 * 1024
 MAX_SHARED_STRINGS_BYTES = 32 * 1024 * 1024
 MAX_CELLS = 500_000
@@ -40,7 +43,10 @@ MAX_IMAGE_PIXELS = 24_000_000
 
 def check_input(source):
     from .core import ConversionError
-    if source.stat().st_size > MAX_INPUT_BYTES:
+    if source.suffix.lower() == '.pdf':
+        if source.stat().st_size > MAX_PDF_INPUT_BYTES:
+            raise ConversionError('PDF 超过 256 MB，请拆分文件。')
+    elif source.stat().st_size > MAX_INPUT_BYTES:
         raise ConversionError('输入超过 64 MB，请拆分文件。')
     if source.suffix.lower() in {'.docx', '.xlsx', '.pptx'}:
         with ZipFile(source) as archive:

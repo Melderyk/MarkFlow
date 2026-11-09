@@ -12,7 +12,7 @@
 
 English: MarkFlow is a Windows desktop PDF/DOCX-to-Markdown converter with local Chinese/English OCR, code blocks, an outline, image hosting adapters and chapter exports. Text conversion runs locally. Images are uploaded only when you choose hosting or explicitly start an upload. Download the portable build from Releases; source setup is below.
 
-当前版本 **0.3.1**，保留 0.2.2 的原依赖版本，增加可选格式扩展：HTML / Excel / PPT / LaTeX / 图片 / Markdown / JSON 导入，以及 Markdown、Word、Excel、PPT、HTML、PDF、LaTeX 和 JSON 导出。包含 0.3.0 本地验收的图片嵌入、资源释放与大表格预览修复。文档在本机处理；Markdown 仍作为可编辑工作文件保存。
+当前版本 **0.3.2**，修复大于 64 MB 的 PDF 无法转换的问题，PDF 输入上限调整为 **256 MB**，并显式释放逐页图片资源。保留多格式转换、图片嵌入、图床、大纲和大表格分段预览功能，原有依赖版本保持锁定。文档在本机处理；Markdown 仍作为可编辑工作文件保存。
 
 ## 格式转换
 
@@ -20,7 +20,9 @@ English: MarkFlow is a Windows desktop PDF/DOCX-to-Markdown converter with local
 
 “保存修改”仍只保存 Markdown 和分章；编辑后点击“导出当前内容”重新生成所选格式。转换及重新导出均在独立子进程执行，每份文件结束后退出进程，格式库不会常驻界面进程。停止请求先协作取消；3 秒后仍未响应时结束转换进程及其 Pandoc 子进程。
 
-输入限制为 64 MB，DOCX / XLSX / PPTX 在解析前检查解压总量，限制为 256 MB；工作簿合计最多 50 万单元格、每表 10 万行 / 2048 列、文本 1600 万字符；OCR 图片每帧最多 2400 万像素、最多 200 帧。JSON 文档表格也检查补齐后的单元格数。超限会提示拆分。XLSX 使用只读流式解析并关闭文件句柄。
+**PDF 输入上限为 256 MB，其他输入格式为 64 MB**（容量按 1024² 字节计算）。PDF 按页分析，单页渲染最长边不超过 4500 像素，逐页关闭图片；转换在独立进程执行，结束后退出进程。文件体积并不等于峰值内存，复杂版面、大量图片和 OCR 仍可能增加耗时与内存，超过上限时请拆分。
+
+DOCX / XLSX / PPTX 在解析前检查解压总量，限制为 256 MB；工作簿合计最多 50 万单元格、每表 10 万行 / 2048 列、文本 1600 万字符；OCR 图片每帧最多 2400 万像素、最多 200 帧。JSON 文档表格也检查补齐后的单元格数。XLSX 使用只读流式解析并关闭文件句柄。图片嵌入仍有单独的容量限制，PDF 上限增大不改变 Typora 或嵌入模式的兼容性限制。
 
 ### Word 表格往返转换
 
@@ -45,7 +47,7 @@ English: MarkFlow is a Windows desktop PDF/DOCX-to-Markdown converter with local
 
 ## 使用免安装版
 
-1. 将 `MarkFlow-v0.3.1-windows-x64.zip` **完整解压**到一个可写目录。
+1. 将 `MarkFlow-v0.3.2-windows-x64.zip` **完整解压**到一个可写目录。
 2. 双击 `MarkFlow.exe`。程序需要同目录的 `_internal`，不要只移动 EXE。
 3. 点击“添加文件”，或把支持的文件拖入队列、编辑区、原文预览、大纲或窗口空白处。
 4. 选择输出目录、Markdown 格式，点击“开始转换”。

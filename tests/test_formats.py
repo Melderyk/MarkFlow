@@ -214,3 +214,20 @@ def test_document_json_bounds_padded_sparse_tables(tmp_path, monkeypatch):
         Converter().convert(source, Options(tmp_path / 'out'))
     assert not list((tmp_path / 'out').iterdir())
 
+
+@pytest.mark.parametrize('suffix,limit,message', [
+    ('.pdf', 16, 'PDF 超过'), ('.PDF', 16, 'PDF 超过'),
+    ('.md', 8, '输入超过'), ('.png', 8, '输入超过'),
+])
+def test_input_size_limit_is_format_specific(tmp_path, monkeypatch, suffix, limit, message):
+    from markflow import formats
+    monkeypatch.setattr(formats, 'MAX_INPUT_BYTES', 8)
+    monkeypatch.setattr(formats, 'MAX_PDF_INPUT_BYTES', 16)
+    source = tmp_path / ('document' + suffix)
+    source.write_bytes(b'x' * limit)
+    formats.check_input(source)  # Exactly at the cap remains accepted.
+    source.write_bytes(b'x' * (limit + 1))
+    with pytest.raises(ConversionError, match=message):
+        Converter().convert(source, Options(tmp_path / 'out'))
+    assert not (tmp_path / 'out').exists()
+
