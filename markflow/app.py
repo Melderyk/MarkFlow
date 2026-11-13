@@ -15,7 +15,7 @@ from PySide6.QtCore import Qt, QThread, Signal, QTimer, QUrl, QSize, QEvent
 from PySide6.QtGui import QAction, QColor, QDesktopServices, QFont, QFontDatabase, QIcon, QImage, QKeySequence, QPixmap, QTextDocument, QTextCursor
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QFileDialog, QFrame, QHBoxLayout,
-    QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
+    QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QMenu,
     QPlainTextEdit, QProgressBar, QPushButton, QScrollArea, QSizePolicy,
     QSpinBox, QSplitter, QStackedWidget, QTabWidget, QTextBrowser, QVBoxLayout, QWidget, QDialog,
 )
@@ -29,6 +29,7 @@ from .ui_helpers import HostDialog
 from .embedded_preview import EmbeddedPreviewBrowser as PreviewBrowser
 from .outline import OutlineTree, OutlineItem
 from .formats import FILE_FILTER, INPUT_SUFFIXES, OUTPUT_FORMATS
+from .merge_dialog import MarkdownMergeDialog
 
 
 ROOT = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[1]
@@ -687,8 +688,13 @@ class MainWindow(QMainWindow):
         self.status = QLabel("就绪 · 本地模式不上传图片")
         self.status.setObjectName("muted")
         bottom.addWidget(self.status, 1)
-        self.merge_btn = QPushButton("合并已转换文档")
-        self.merge_btn.clicked.connect(self.merge_documents)
+        self.merge_btn = QPushButton("合并文档")
+        merge_menu = QMenu(self.merge_btn)
+        self.merge_converted_action = merge_menu.addAction("合并已转换文档")
+        self.merge_converted_action.triggered.connect(self.merge_documents)
+        self.merge_md_action = merge_menu.addAction("合并 MD 文件…")
+        self.merge_md_action.triggered.connect(self.merge_markdown_documents)
+        self.merge_btn.setMenu(merge_menu)
         self.open_btn = QPushButton("打开输出目录 ↗")
         self.open_btn.clicked.connect(self.open_output)
         self.chapter_btn=QPushButton('分章阅读版')
@@ -999,7 +1005,9 @@ class MainWindow(QMainWindow):
         self.source_btn.setEnabled(selected)
         self.editor.setReadOnly(not bool(entry and entry.result) or self.running)
         self.save_btn.setEnabled(bool(entry and entry.result and entry.dirty) and not self.running)
-        self.merge_btn.setEnabled(any(e.result for e in self.entries) and not self.running)
+        self.merge_btn.setEnabled(not self.running)
+        self.merge_converted_action.setEnabled(any(e.result for e in self.entries) and not self.running)
+        self.merge_md_action.setEnabled(not self.running)
         self.start_btn.setEnabled(self.running or any(not e.result for e in self.entries))
         self.apply_language_btn.setEnabled(bool(entry and entry.result and self.index.codes) and not self.running)
         self.chapter_btn.setEnabled(bool(entry and entry.result and entry.result.chapters_dir) and not self.running)
@@ -1201,6 +1209,18 @@ class MainWindow(QMainWindow):
                 self.update_chapters(entry)
                 entry.result.markdown = entry.draft
                 entry.dirty = False
+
+    def merge_markdown_documents(self):
+        if self.running:
+            return
+        if not self.output_edit.text().strip():
+            QMessageBox.warning(self, '请选择输出目录', '请先在左侧设置合并文件的输出目录。')
+            return
+        dialog = MarkdownMergeDialog(Path(self.output_edit.text()).resolve(), self.profile.currentText(), self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.destination:
+            self.status.setText(f'已合并 {dialog.merged_count} 份 MD 文档 · {dialog.destination.name}')
+            QMessageBox.information(self, '合并完成', f'已生成：\n{dialog.destination}\n\n本地图片和文件链接指向原目录，请保留对应资源。')
+        dialog.deleteLater()
 
     def merge_documents(self):
         try:

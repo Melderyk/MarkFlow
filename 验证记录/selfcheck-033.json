@@ -1,0 +1,57 @@
+{
+  "version": "0.3.3",
+  "frozen": true,
+  "checks": [
+    {
+      "file": "01_Word示例.docx",
+      "pages": 0,
+      "ocr_pages": 0,
+      "passed": true
+    },
+    {
+      "file": "02_文字PDF示例.pdf",
+      "pages": 2,
+      "ocr_pages": 0,
+      "passed": true
+    },
+    {
+      "file": "03_扫描PDF示例.pdf",
+      "pages": 1,
+      "ocr_pages": 1,
+      "passed": true
+    }
+  ],
+  "embedded_markdown": {
+    "single_file": true,
+    "image_decoding": true,
+    "gui_conversion_and_preview": true
+  },
+  "typora_compatibility_notice": true,
+  "windows_secret_store": true,
+  "markdown_merge": {
+    "ordered_dialog": true,
+    "duplicate_inputs_skipped": true,
+    "utf16_input": true,
+    "local_image_paths": true,
+    "reference_isolation": true,
+    "fenced_example_preserved": true,
+    "unique_output": true
+  },
+  "format_exports": [
+    "docx",
+    "xlsx",
+    "pptx",
+    "html",
+    "tex",
+    "pdf"
+  ],
+  "ui_features": {
+    "child_viewport_drop": true,
+    "outline_navigation": true,
+    "manual_code_language_and_save": true,
+    "bounded_preview": true,
+    "event_loop_shutdown": true
+  },
+  "passed": true,
+  "exit_code": 0
+}

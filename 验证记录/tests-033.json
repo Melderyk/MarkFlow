@@ -1,0 +1,16 @@
+{
+  "version": "0.3.3",
+  "date": "2026-11-13",
+  "passed": 155,
+  "failed": 0,
+  "exit_code": 0,
+  "seconds": 54.0,
+  "legacy_qt_drag_deprecation_warnings": 22,
+  "locked_packages": 38,
+  "format_extension_packages": 8,
+  "dependency_check_passed": true,
+  "original_dependency_and_host_files_unchanged": true,
+  "platform": "Windows x64",
+  "python": "3.12.14",
+  "pyside6": "6.12.0"
+}

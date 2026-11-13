@@ -136,6 +136,53 @@ def run(destination, stress_source=None):
         window.grab().save(str(output / 'selfcheck-embedded-ui.png'))
         report['embedded_markdown']['gui_conversion_and_preview'] = True
         window.image_mode.setCurrentIndex(0)
+        # Exercise the new direct-MD workflow in the packaged executable too.
+        from .merge_dialog import MarkdownMergeDialog
+        from .markdown_merge import merge_markdown_files
+        from PIL import Image
+        inputs = output / 'merge-inputs'
+        inputs.mkdir(exist_ok=True)
+        Image.new('RGB', (8, 8), '#447df5').save(inputs / 'picture.png')
+        first = inputs / 'first.md'
+        second = inputs / 'second.markdown'
+        first.write_text('# First source\n\n![picture][image]\n\n[image]: picture.png\n\n```md\n![example](sample.png)\n```\n', encoding='utf-8')
+        second.write_text('# Second source\n\n中文合并测试\n\n![picture][image]\n\n[image]: picture.png\n', encoding='utf-16')
+        dialog = MarkdownMergeDialog(output / 'merged-markdown', 'GitHub / 通用', window)
+        dialog.add_files([first, second, first])
+        dialog.files.setCurrentRow(1)
+        dialog.move_selected(-1)
+        dialog.start_merge()
+        deadline = time.monotonic() + 30
+        while dialog.worker is not None:
+            app.processEvents()
+            time.sleep(.01)
+            if time.monotonic() > deadline:
+                dialog.worker.cancel_event.set()
+                dialog.worker.wait()
+                raise RuntimeError('MD merge self-check timed out')
+        assert dialog.destination is not None, dialog.status.text()
+        merged = dialog.destination.read_text(encoding='utf-8')
+        assert merged.index('# Second source') < merged.index('# First source')
+        assert '中文合并测试' in merged
+        assert '[document-1-image]: ../merge-inputs/picture.png' in merged
+        assert '[document-2-image]: ../merge-inputs/picture.png' in merged
+        assert '```md\n![example](sample.png)\n```' in merged
+        again = merge_markdown_files([first, second], dialog.destination.parent)
+        assert again != dialog.destination and again.is_file()
+        assert window.merge_md_action.isEnabled()
+        dialog.deleteLater()
+        report['markdown_merge'] = {'ordered_dialog': True, 'duplicate_inputs_skipped': True,
+            'utf16_input': True, 'local_image_paths': True, 'reference_isolation': True,
+            'fenced_example_preserved': True, 'unique_output': True}
+        from .formats import export_document
+        formats_output = output / 'format-exports'
+        formats_output.mkdir(exist_ok=True)
+        for suffix in ('docx', 'xlsx', 'pptx', 'html', 'tex', 'pdf'):
+            target = formats_output / ('sample.' + suffix)
+            export_document('# MarkFlow format check\n\n| Name | Value |\n| --- | --- |\n| Test | 128.50 |\n',
+                            target, base=formats_output)
+            assert target.stat().st_size > 100
+        report['format_exports'] = ['docx', 'xlsx', 'pptx', 'html', 'tex', 'pdf']
         if stress_source:
             from .performance_check import exercise
             report['responsiveness']=exercise(app,window,Path(stress_source),output)

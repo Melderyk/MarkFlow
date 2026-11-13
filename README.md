@@ -12,7 +12,7 @@
 
 English: MarkFlow is a Windows desktop PDF/DOCX-to-Markdown converter with local Chinese/English OCR, code blocks, an outline, image hosting adapters and chapter exports. Text conversion runs locally. Images are uploaded only when you choose hosting or explicitly start an upload. Download the portable build from Releases; source setup is below.
 
-当前版本 **0.3.2**，修复大于 64 MB 的 PDF 无法转换的问题，PDF 输入上限调整为 **256 MB**，并显式释放逐页图片资源。保留多格式转换、图片嵌入、图床、大纲和大表格分段预览功能，原有依赖版本保持锁定。文档在本机处理；Markdown 仍作为可编辑工作文件保存。
+当前版本 **0.3.3**，新增直接合并已有 MD 文档：多选文件、拖动排序、生成目录，并调整本地图片和附件链接，无需先转换。保留多格式转换、256 MB PDF 输入、图片嵌入、图床、大纲和大表格分段预览功能，原有依赖版本保持锁定。文档在本机处理；Markdown 仍作为可编辑工作文件保存。
 
 ## 格式转换
 
@@ -47,12 +47,22 @@ DOCX / XLSX / PPTX 在解析前检查解压总量，限制为 256 MB；工作簿
 
 ## 使用免安装版
 
-1. 将 `MarkFlow-v0.3.2-windows-x64.zip` **完整解压**到一个可写目录。
+1. 将 `MarkFlow-v0.3.3-windows-x64.zip` **完整解压**到一个可写目录。
 2. 双击 `MarkFlow.exe`。程序需要同目录的 `_internal`，不要只移动 EXE。
 3. 点击“添加文件”，或把支持的文件拖入队列、编辑区、原文预览、大纲或窗口空白处。
 4. 选择输出目录、Markdown 格式，点击“开始转换”。
 5. 对照原文检查结果。在右侧编辑 Markdown，点击“保存修改”或按 Ctrl+S。
-6. 需要一个总文件时，点击“合并已转换文档”。合并顺序为队列中的添加顺序。
+6. 需要一个总文件时，点击“合并文档” → “合并已转换文档”。合并顺序为队列中的添加顺序。
+
+### 直接合并已有 MD 文件
+
+点击主窗口底部的 **“合并文档” → “合并 MD 文件…”**，添加至少两个 `.md` / `.markdown` 文件，无需先加入转换队列。可拖动列表排序，或使用“上移 / 下移”；按列表从上到下合并，输出到主窗口左侧设置的目录。
+
+![MD 文件合并与排序窗口](docs/markdown-merge.png)
+
+结果为带目录的 UTF-8 `合并文档.md`，重名时自动编号。支持读取 UTF-8、带 BOM 的 UTF-16 和 GB18030，所选文件合计最多 64 MB。保留原有正文与代码块，调整 Markdown 图片、文件链接、引用式链接定义及常见 HTML 图片 / 链接的相对路径；远程链接与嵌入图片保留原值。代码围栏未闭合时会提示修正，避免后续正文被吞入代码块。
+
+合并不会复制图片或附件，本地链接仍指向原资源目录，请保留对应资源；需要迁移时一起移动并核对链接。“合并文档”菜单中的“合并已转换文档”继续合并转换队列中的结果和当前编辑内容。
 
 适用于 Windows 10 / 11 x64。运行时无需安装 Python、Word 或 OCR 服务。OCR 模型随程序提供，使用 CPU 在本机运行。本地图片模式不联网；选择图床模式或点击“上传 / 重试图片”会向所配置的服务上传图片。不发送 PDF / Word 原文件或单独发送 Markdown 文本，不调用云端 AI。扫描代码的原页核对图包含该页内容，也属于导出图片，选择图床时会一同上传。
 

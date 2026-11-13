@@ -661,7 +661,8 @@ def pdf_preview(source: Path, index: int = 0) -> tuple[Image.Image, int]:
 
 
 def merge_results(results: list[Result], output_dir: Path, profile: str,
-                  markdowns: dict[str, str] | None = None) -> Path:
+                  markdowns: dict[str, str] | None = None, *, cancel=None) -> Path:
+    from .markdown_merge import rebase_markdown_links
     if not results:
         raise ConversionError("请先成功转换至少一个文件")
     stem = unique_stem(output_dir, "合并文档")
@@ -677,19 +678,13 @@ def merge_results(results: list[Result], output_dir: Path, profile: str,
         else:
             lines.append(f"- [{escape(result.source.stem)}](#document-{index})")
     for index, result in enumerate(results, 1):
+        Converter.check(cancel)
         markdown = (markdowns or {}).get(str(result.output), result.markdown)
-        source_parent = result.output.parent
-        def rewrite(match):
-            target = unquote(match.group(2))
-            if "://" in target or target.startswith("data:"):
-                return match.group(0)
-            absolute = (source_parent / target).resolve()
-            relative = os.path.relpath(absolute, output_dir).replace("\\", "/")
-            return f"![{match.group(1)}]({quote(relative, safe='/.:_-')})"
-        markdown = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", rewrite, markdown)
+        markdown = rebase_markdown_links(markdown, result.output.parent, output_dir)
         if profile not in {"Obsidian", "Typora"}:
             lines.extend(["", f'<a id="document-{index}"></a>'])
         lines.extend(["", f"# 文档 {index}：{escape(result.source.stem)}", "", markdown.strip(), "", "---"])
+    Converter.check(cancel)
     atomic_write(destination, "\n".join(lines).rstrip() + "\n")
     return destination
 
